@@ -1,0 +1,24 @@
+{
+  "id": "01929f3a-a000-7000-8000-000000000001",
+  "schemaVersion": 1,
+  "version": 3,
+  "name": "Industrial dark",
+  "mode": "dark",
+  "tokens": {
+    "color": {
+      "surface": { "base": "#0f1419", "raised": "#18202a" },
+      "text": { "primary": "#e6edf3", "muted": "#8b98a5" },
+      "border": { "subtle": "#2a3440" },
+      "accent": { "primary": "#f5a524" }
+    },
+    "status": { "ok": "#3fb950", "warning": "#d29922", "critical": "#f85149", "offline": "#6e7681" },
+    "space": { "xs": "4px", "sm": "8px", "md": "16px", "lg": "24px", "xl": "40px" },
+    "radius": { "sm": "4px", "md": "8px" },
+    "font": {
+      "family": { "base": "Vazirmatn, system-ui, sans-serif", "mono": "ui-monospace, monospace" },
+      "size": { "sm": "0.875rem", "md": "1rem", "lg": "1.25rem", "kpi": "2.25rem" }
+    },
+    "shadow": { "raised": "0 1px 3px rgba(0,0,0,0.4)" }
+  },
+  "breakpoints": { "tablet": 1024, "mobile": 640 }
+}

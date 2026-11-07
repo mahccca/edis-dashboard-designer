@@ -1,0 +1,120 @@
+{
+  "id": "01929f3a-1000-7000-8000-000000000004",
+  "key": "industrial.chart",
+  "schemaVersion": 1,
+  "version": "1.0.0",
+  "category": "chart",
+  "name": { "fa": "نمودار", "en": "Chart" },
+  "description": {
+    "fa": "یک ویجت نمودار واحد: نوع و ترکیب را از Inspector انتخاب کنید و کل داده را از API بایند کنید.",
+    "en": "Single chart widget: pick type/combo in the inspector and bind the full dataset from an API."
+  },
+  "status": "published",
+  "rendererId": "builtin.chart@1",
+  "properties": [
+    { "key": "title", "label": { "fa": "عنوان", "en": "Title" }, "type": "string", "maxLength": 120, "group": "content" },
+    {
+      "key": "chartType",
+      "label": { "fa": "نوع نمودار", "en": "Chart type" },
+      "type": "enum",
+      "enum": ["line", "bar", "area", "pie", "scatter", "combo"],
+      "required": true,
+      "group": "model",
+      "help": {
+        "fa": "combo = چند سری با نوع‌های متفاوت (مثلاً میله + خط).",
+        "en": "combo = mixed series types (e.g. bar + line)."
+      }
+    },
+    {
+      "key": "xField",
+      "label": { "fa": "فیلد محور X / دسته", "en": "X / category field" },
+      "type": "string",
+      "maxLength": 64,
+      "group": "mapping",
+      "help": { "fa": "نام ستون در JSON (مثلاً category یا time). خالی = حدس خودکار.", "en": "Column name in JSON. Empty = auto-detect." }
+    },
+    {
+      "key": "yFields",
+      "label": { "fa": "فیلدهای مقدار (با کاما)", "en": "Y fields (comma-separated)" },
+      "type": "string",
+      "maxLength": 200,
+      "group": "mapping",
+      "help": {
+        "fa": "مثلاً power,energy برای چند سری عریض. خالی = همهٔ ستون‌های عددی.",
+        "en": "e.g. power,energy for wide multi-series. Empty = all numeric columns."
+      }
+    },
+    {
+      "key": "seriesField",
+      "label": { "fa": "فیلد نام سری (فرمت بلند)", "en": "Series field (long format)" },
+      "type": "string",
+      "maxLength": 64,
+      "group": "mapping",
+      "help": {
+        "fa": "اگر API ردیف‌های metric/value برمی‌گرداند، نام ستون متریک را اینجا بگذارید.",
+        "en": "If the API returns metric/value rows, set the metric column here."
+      }
+    },
+    {
+      "key": "seriesTypes",
+      "label": { "fa": "نوع هر سری در combo", "en": "Per-series types (combo)" },
+      "type": "string",
+      "maxLength": 120,
+      "group": "model",
+      "help": {
+        "fa": "فقط برای combo؛ مثلاً bar,line,area هم‌تراز با yFields.",
+        "en": "Combo only; e.g. bar,line,area aligned with yFields."
+      }
+    },
+    { "key": "stacked", "label": { "fa": "انباشته", "en": "Stacked" }, "type": "boolean", "group": "model" },
+    { "key": "smooth", "label": { "fa": "خط نرم", "en": "Smooth line" }, "type": "boolean", "group": "style" },
+    { "key": "showLegend", "label": { "fa": "نمایش راهنما", "en": "Show legend" }, "type": "boolean", "group": "style" },
+    { "key": "dualAxis", "label": { "fa": "محور Y دوم (combo)", "en": "Dual Y-axis (combo)" }, "type": "boolean", "group": "model" },
+    { "key": "height", "label": { "fa": "ارتفاع (px)", "en": "Height (px)" }, "type": "integer", "minimum": 120, "maximum": 900, "group": "layout" }
+  ],
+  "defaults": {
+    "title": "نمودار",
+    "chartType": "line",
+    "xField": "category",
+    "yFields": "",
+    "seriesField": "",
+    "seriesTypes": "bar,line",
+    "stacked": false,
+    "smooth": true,
+    "showLegend": true,
+    "dualAxis": false,
+    "height": 260
+  },
+  "inputs": [
+    {
+      "key": "dataset",
+      "label": { "fa": "دادهٔ نمودار", "en": "Chart dataset" },
+      "dataType": "table",
+      "required": true
+    }
+  ],
+  "bindings": [
+    {
+      "input": "dataset",
+      "allowedSources": ["data_source_signal", "static"]
+    }
+  ],
+  "style": {
+    "parts": [
+      { "part": "frame", "allowed": ["background", "borderRadius", "padding", "width", "height"] },
+      { "part": "title", "allowed": ["color", "fontSize", "fontFamily"] }
+    ],
+    "tokens": ["color.surface.raised", "color.text.primary", "color.accent.primary"],
+    "defaults": { "padding": { "$token": "space.md" }, "borderRadius": { "$token": "radius.md" } }
+  },
+  "layoutConstraints": {
+    "minWidth": 220,
+    "minHeight": 180,
+    "resizable": true,
+    "allowedParents": ["column", "grid", "stack", "container"],
+    "allowedDocumentTypes": ["page", "dashboard", "template"]
+  },
+  "permissions": { "use": ["component.use"], "edit": ["component.edit"] },
+  "compatibility": { "minPlatformVersion": "0.1.0" },
+  "changelog": "1.0.0: unified chart (line/bar/area/pie/scatter/combo) with API-bound dataset."
+}

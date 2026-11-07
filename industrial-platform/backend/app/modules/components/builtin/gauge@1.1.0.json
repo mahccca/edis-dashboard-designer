@@ -1,0 +1,50 @@
+{
+  "id": "01929f3a-1000-7000-8000-000000000002",
+  "key": "industrial.gauge",
+  "schemaVersion": 1,
+  "version": "1.1.0",
+  "category": "gauge",
+  "name": { "fa": "گیج نیم‌دایره", "en": "Semi-circle gauge" },
+  "description": { "fa": "نمایش عددی روی گیج نیم‌دایره با حداقل/حداکثر و آستانه؛ min/max هم از API قابل بایند هستند.", "en": "Numeric semi-circle gauge; min/max scale can be bound from an API." },
+  "status": "published",
+  "rendererId": "builtin.gauge@1",
+  "properties": [
+    { "key": "title", "label": { "fa": "عنوان", "en": "Title" }, "type": "string", "maxLength": 80, "group": "content" },
+    { "key": "unit", "label": { "fa": "واحد", "en": "Unit" }, "type": "string", "maxLength": 16, "group": "format" },
+    { "key": "min", "label": { "fa": "حداقل (پیش‌فرض)", "en": "Minimum (fallback)" }, "type": "number", "group": "scale", "help": { "fa": "اگر ورودی min بایند نشود از این مقدار استفاده می‌شود.", "en": "Used when the min input is not bound." } },
+    { "key": "max", "label": { "fa": "حداکثر (پیش‌فرض)", "en": "Maximum (fallback)" }, "type": "number", "group": "scale", "help": { "fa": "اگر ورودی max بایند نشود از این مقدار استفاده می‌شود.", "en": "Used when the max input is not bound." } },
+    { "key": "decimals", "label": { "fa": "اعشار", "en": "Decimals" }, "type": "integer", "minimum": 0, "maximum": 4, "group": "format" },
+    { "key": "warnAbove", "label": { "fa": "هشدار بالاتر از", "en": "Warn above" }, "type": "number", "group": "thresholds" },
+    { "key": "critAbove", "label": { "fa": "بحرانی بالاتر از", "en": "Critical above" }, "type": "number", "group": "thresholds" }
+  ],
+  "defaults": { "title": "Gauge", "unit": "", "min": 0, "max": 100, "decimals": 1 },
+  "inputs": [
+    { "key": "value", "label": { "fa": "مقدار", "en": "Value" }, "dataType": "number", "required": true },
+    { "key": "min", "label": { "fa": "حداقل", "en": "Minimum" }, "dataType": "number" },
+    { "key": "max", "label": { "fa": "حداکثر", "en": "Maximum" }, "dataType": "number" }
+  ],
+  "bindings": [
+    { "input": "value", "allowedSources": ["object_variable", "model_output", "data_source_signal", "static"] },
+    { "input": "min", "allowedSources": ["object_variable", "model_output", "data_source_signal", "static"] },
+    { "input": "max", "allowedSources": ["object_variable", "model_output", "data_source_signal", "static"] }
+  ],
+  "style": {
+    "parts": [
+      { "part": "frame", "allowed": ["background", "borderRadius", "padding", "width", "height"] },
+      { "part": "title", "allowed": ["color", "fontSize", "fontFamily"] },
+      { "part": "value", "allowed": ["color", "fontSize", "fontFamily"] }
+    ],
+    "tokens": ["color.accent.primary", "color.status.warning", "color.status.critical", "color.surface.raised"],
+    "defaults": { "padding": { "$token": "space.md" }, "borderRadius": { "$token": "radius.md" } }
+  },
+  "layoutConstraints": {
+    "minWidth": 160,
+    "minHeight": 120,
+    "resizable": true,
+    "allowedParents": ["column", "grid", "stack", "container"],
+    "allowedDocumentTypes": ["page", "dashboard", "template"]
+  },
+  "permissions": { "use": ["component.use"], "edit": ["component.edit"] },
+  "compatibility": { "minPlatformVersion": "0.1.0" },
+  "changelog": "1.1.0: min/max as bindable inputs (API). 1.0.0: initial semi-circle gauge."
+}

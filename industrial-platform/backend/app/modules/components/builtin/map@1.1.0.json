@@ -1,0 +1,91 @@
+{
+  "id": "01929f3a-1000-7000-8000-000000000005",
+  "key": "industrial.map",
+  "schemaVersion": 1,
+  "version": "1.1.0",
+  "category": "symbol",
+  "name": { "fa": "نقشه", "en": "Map" },
+  "description": {
+    "fa": "نقشهٔ سلسله‌مراتبی با پس‌زمینه شفاف؛ رنگ کشور قابل تنظیم است.",
+    "en": "Hierarchical map with transparent background; country fill color is configurable."
+  },
+  "status": "published",
+  "rendererId": "builtin.map@1",
+  "properties": [
+    { "key": "title", "label": { "fa": "عنوان", "en": "Title" }, "type": "string", "maxLength": 120, "group": "content" },
+    { "key": "showTitle", "label": { "fa": "نمایش عنوان", "en": "Show title" }, "type": "boolean", "group": "content" },
+    {
+      "key": "level",
+      "label": { "fa": "سطح", "en": "Level" },
+      "type": "enum",
+      "enum": ["world", "continent", "country", "province", "city"],
+      "required": true,
+      "group": "scope"
+    },
+    {
+      "key": "region",
+      "label": { "fa": "کد ناحیه", "en": "Region code" },
+      "type": "string",
+      "maxLength": 32,
+      "required": true,
+      "group": "scope",
+      "help": {
+        "fa": "نمونه‌ها: WORLD | AS | 364 (ایران) | IR-07 | IR-THR",
+        "en": "Examples: WORLD | AS | 364 (Iran) | IR-07 | IR-THR"
+      }
+    },
+    {
+      "key": "landColor",
+      "label": { "fa": "رنگ کشور / خشکی", "en": "Land color" },
+      "type": "color",
+      "group": "style",
+      "help": { "fa": "پیش‌فرض سفید است؛ از Inspector عوض کنید.", "en": "Defaults to white; change in the inspector." }
+    },
+    {
+      "key": "strokeColor",
+      "label": { "fa": "رنگ مرز", "en": "Border color" },
+      "type": "color",
+      "group": "style"
+    },
+    { "key": "showLabels", "label": { "fa": "برچسب‌ها", "en": "Show labels" }, "type": "boolean", "group": "style" },
+    { "key": "height", "label": { "fa": "ارتفاع (px)", "en": "Height (px)" }, "type": "integer", "minimum": 160, "maximum": 900, "group": "layout" }
+  ],
+  "defaults": {
+    "title": "نقشه",
+    "showTitle": false,
+    "level": "country",
+    "region": "364",
+    "landColor": "#ffffff",
+    "strokeColor": "#1f2a37",
+    "showLabels": true,
+    "height": 440
+  },
+  "inputs": [
+    {
+      "key": "metrics",
+      "label": { "fa": "مقادیر ناحیه‌ها (id/value)", "en": "Region metrics (id/value)" },
+      "dataType": "table"
+    }
+  ],
+  "bindings": [
+    { "input": "metrics", "allowedSources": ["data_source_signal", "static"] }
+  ],
+  "style": {
+    "parts": [
+      { "part": "frame", "allowed": ["width", "height"] },
+      { "part": "title", "allowed": ["color", "fontSize", "fontFamily"] }
+    ],
+    "tokens": ["color.accent.primary"],
+    "defaults": {}
+  },
+  "layoutConstraints": {
+    "minWidth": 280,
+    "minHeight": 240,
+    "resizable": true,
+    "allowedParents": ["column", "grid", "stack", "container"],
+    "allowedDocumentTypes": ["page", "dashboard", "template"]
+  },
+  "permissions": { "use": ["component.use"], "edit": ["component.edit"] },
+  "compatibility": { "minPlatformVersion": "0.1.0" },
+  "changelog": "1.1.0: transparent background, white land, configurable landColor/strokeColor. 1.0.0: initial."
+}

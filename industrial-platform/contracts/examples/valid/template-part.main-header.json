@@ -1,0 +1,50 @@
+{
+  "id": "01929f3a-7000-7000-8000-000000000002",
+  "projectId": "01929f3a-0000-7000-8000-000000000001",
+  "partType": "header",
+  "name": "Main header",
+  "priority": 10,
+  "displayConditions": [
+    { "mode": "include", "rule": { "kind": "entire_site" } },
+    { "mode": "exclude", "rule": { "kind": "path_prefix", "prefix": "/kiosk" } }
+  ],
+  "status": "published",
+  "headRevision": 3,
+  "document": {
+    "schemaVersion": 1,
+    "documentType": "template_part",
+    "settings": { "layout": "fluid", "direction": "rtl" },
+    "root": {
+      "id": "root",
+      "type": "root",
+      "children": [
+        {
+          "id": "hdr-bar",
+          "type": "section",
+          "style": {
+            "display": "flex",
+            "align": "center",
+            "justify": "space-between",
+            "paddingX": { "$token": "space.lg" },
+            "height": "64px",
+            "background": { "$token": "color.surface.raised" },
+            "borderColor": { "$token": "color.border.subtle" },
+            "borderWidth": "1px"
+          },
+          "children": [
+            {
+              "id": "hdr-brand",
+              "type": "stack",
+              "style": { "direction": "row", "gap": { "$token": "space.sm" }, "align": "center" },
+              "children": [
+                { "id": "hdr-logo", "type": "logo", "props": { "mediaId": "01929f3a-9000-7000-8000-000000000001", "height": 32 } },
+                { "id": "hdr-name", "type": "heading", "props": { "text": { "fa": "پلتفرم بصری صنعتی", "en": "Industrial Visual Platform" }, "level": 2 } }
+              ]
+            },
+            { "id": "hdr-menu", "type": "menu", "props": { "menuId": "01929f3a-8000-7000-8000-000000000001", "orientation": "horizontal" } }
+          ]
+        }
+      ]
+    }
+  }
+}

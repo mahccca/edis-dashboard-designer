@@ -1,0 +1,80 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.industrial-platform.local/schemas/v1/expression.schema.json",
+  "title": "Expression AST",
+  "description": "Compiled form of a formula. Produced ONLY by the server-side parser from the source string; stored next to it so evaluators never re-parse untrusted text. Grammar (EBNF):\n  expr    := cond\n  cond    := or ('?' expr ':' expr)?\n  or      := and ('||' and)*\n  and     := cmp ('&&' cmp)*\n  cmp     := add (('=='|'!='|'<'|'<='|'>'|'>=') add)?\n  add     := mul (('+'|'-') mul)*\n  mul     := unary (('*'|'/'|'%') unary)*\n  unary   := ('-'|'!') unary | pow\n  pow     := primary ('^' unary)?\n  primary := NUMBER | 'true' | 'false' | IDENT | IDENT '(' args? ')' | '(' expr ')'\nIdentifiers resolve only to declared inputs/parameters/variables; functions only from the whitelist below. No member access, indexing, strings, assignment or loops exist in the grammar.",
+  "$ref": "#/$defs/node",
+  "$defs": {
+    "node": {
+      "oneOf": [
+        { "$ref": "#/$defs/num" },
+        { "$ref": "#/$defs/bool" },
+        { "$ref": "#/$defs/ref" },
+        { "$ref": "#/$defs/unary" },
+        { "$ref": "#/$defs/binary" },
+        { "$ref": "#/$defs/call" },
+        { "$ref": "#/$defs/cond" }
+      ]
+    },
+    "num": {
+      "type": "object",
+      "properties": { "k": { "const": "num" }, "v": { "type": "number" } },
+      "required": ["k", "v"],
+      "additionalProperties": false
+    },
+    "bool": {
+      "type": "object",
+      "properties": { "k": { "const": "bool" }, "v": { "type": "boolean" } },
+      "required": ["k", "v"],
+      "additionalProperties": false
+    },
+    "ref": {
+      "type": "object",
+      "properties": { "k": { "const": "ref" }, "name": { "$ref": "common.schema.json#/$defs/key" } },
+      "required": ["k", "name"],
+      "additionalProperties": false
+    },
+    "unary": {
+      "type": "object",
+      "properties": {
+        "k": { "const": "unary" },
+        "op": { "enum": ["-", "!"] },
+        "arg": { "$ref": "#/$defs/node" }
+      },
+      "required": ["k", "op", "arg"],
+      "additionalProperties": false
+    },
+    "binary": {
+      "type": "object",
+      "properties": {
+        "k": { "const": "binary" },
+        "op": { "enum": ["+", "-", "*", "/", "%", "^", "==", "!=", "<", "<=", ">", ">=", "&&", "||"] },
+        "left": { "$ref": "#/$defs/node" },
+        "right": { "$ref": "#/$defs/node" }
+      },
+      "required": ["k", "op", "left", "right"],
+      "additionalProperties": false
+    },
+    "call": {
+      "type": "object",
+      "properties": {
+        "k": { "const": "call" },
+        "fn": { "enum": ["abs", "min", "max", "clamp", "round", "floor", "ceil", "sqrt", "exp", "ln", "log10", "if", "safe_div"] },
+        "args": { "type": "array", "items": { "$ref": "#/$defs/node" }, "maxItems": 8 }
+      },
+      "required": ["k", "fn", "args"],
+      "additionalProperties": false
+    },
+    "cond": {
+      "type": "object",
+      "properties": {
+        "k": { "const": "cond" },
+        "test": { "$ref": "#/$defs/node" },
+        "then": { "$ref": "#/$defs/node" },
+        "else": { "$ref": "#/$defs/node" }
+      },
+      "required": ["k", "test", "then", "else"],
+      "additionalProperties": false
+    }
+  }
+}

@@ -1,0 +1,20 @@
+{
+  "id": "01929f3a-3000-7000-8000-000000000001",
+  "projectId": "01929f3a-0000-7000-8000-000000000001",
+  "typeId": "01929f3a-2000-7000-8000-000000000001",
+  "typeVersion": "1.0.0",
+  "key": "jb-01.inv-01",
+  "name": { "fa": "اینورتر ۱ — جعبه تقسیم ۱", "en": "JB-01 / INV-01" },
+  "parentId": "01929f3a-3000-7000-8000-000000000010",
+  "status": "active",
+  "parameters": { "rated_ac_power": 100, "dc_capacity": 120, "manufacturer": "unknown (to be confirmed)" },
+  "variableSources": {
+    "ac_power": { "kind": "data_source_signal", "dataSourceId": "01929f3a-4000-7000-8000-000000000001", "signal": "Darkhoveyn/JB-01/INV-01/AC_POWER", "sourceUnit": "W" },
+    "pv_power": { "kind": "data_source_signal", "dataSourceId": "01929f3a-4000-7000-8000-000000000001", "signal": "Darkhoveyn/JB-01/INV-01/PV_POWER", "sourceUnit": "W" }
+  },
+  "relations": [
+    { "relationKey": "junction_box", "targetObjectId": "01929f3a-3000-7000-8000-000000000020" }
+  ],
+  "tags": ["site:darkhoveyn", "jb:01"],
+  "lockVersion": 4
+}

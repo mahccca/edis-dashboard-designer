@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.industrial-platform.local/schemas/v1/component-instance.schema.json",
+  "title": "Component instance",
+  "description": "A placement of a ComponentDefinition inside a document. Instances live ONLY inside document JSONB (node.type = 'component'); the server maintains a derived index table (component_usages) on every save for where-used / impact analysis. The reference is always to an exact definition version: drafts may be upgraded explicitly by the editor, published versions are pinned forever.",
+  "allOf": [
+    { "$ref": "node.schema.json#/$defs/node" },
+    {
+      "properties": {
+        "type": { "const": "component" },
+        "props": {
+          "description": "Overrides of the definition's property defaults. Validated against the referenced definition version's property schema by the semantic validator."
+        }
+      },
+      "required": ["component"]
+    }
+  ],
+  "$defs": {
+    "definitionRef": {
+      "type": "object",
+      "properties": {
+        "definitionId": { "$ref": "common.schema.json#/$defs/uuid" },
+        "definitionKey": {
+          "$ref": "common.schema.json#/$defs/qualifiedKey",
+          "description": "Denormalized for readability/debugging; definitionId is authoritative."
+        },
+        "version": { "$ref": "common.schema.json#/$defs/semver" }
+      },
+      "required": ["definitionId", "version"],
+      "additionalProperties": false
+    }
+  }
+}

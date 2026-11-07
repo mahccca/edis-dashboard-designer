@@ -1,0 +1,55 @@
+{
+  "id": "01929f3a-6000-7000-8000-000000000001",
+  "key": "solar.performance-ratio",
+  "schemaVersion": 1,
+  "version": "1.0.0",
+  "status": "published",
+  "name": { "fa": "نسبت عملکرد روزانه نیروگاه (PR)", "en": "Daily plant performance ratio" },
+  "description": { "en": "IEC 61724-style simplified PR: PR = E_ac / (H_poa * P_stc / G_stc). No temperature correction in v1." },
+  "inputs": [
+    {
+      "key": "energy_ac",
+      "name": { "en": "AC energy today" },
+      "unit": "kWh",
+      "quantity": "energy",
+      "minimum": 0,
+      "required": true,
+      "defaultSource": { "kind": "object_variable", "objectId": "01929f3a-3000-7000-8000-000000000010", "variable": "energy_today", "aggregation": "last", "window": "today" }
+    },
+    {
+      "key": "irradiation_poa",
+      "name": { "en": "Plane-of-array irradiation today" },
+      "unit": "kWh/m2",
+      "quantity": "irradiation",
+      "minimum": 0,
+      "required": true,
+      "defaultSource": { "kind": "run_argument" }
+    },
+    {
+      "key": "energy_dc",
+      "name": { "en": "DC energy today" },
+      "unit": "kWh",
+      "quantity": "energy",
+      "minimum": 0,
+      "required": false,
+      "defaultSource": { "kind": "run_argument" }
+    }
+  ],
+  "parameters": [
+    { "key": "capacity_stc", "name": { "en": "Installed DC capacity at STC" }, "unit": "kWp", "quantity": "power", "minimum": 0, "default": 1500 },
+    { "key": "g_stc", "name": { "en": "STC irradiance" }, "unit": "kW/m2", "quantity": "irradiance", "default": 1 }
+  ],
+  "variables": [
+    { "key": "reference_yield", "name": { "en": "Reference yield" }, "unit": "h", "formula": { "expression": "irradiation_poa / g_stc" } },
+    { "key": "final_yield", "name": { "en": "Final yield" }, "unit": "h", "formula": { "expression": "energy_ac / capacity_stc" } }
+  ],
+  "outputs": [
+    { "key": "performance_ratio", "name": { "fa": "PR", "en": "Performance ratio" }, "unit": "%", "quantity": "ratio", "minimum": 0, "maximum": 150, "formula": { "expression": "round(safe_div(final_yield, reference_yield) * 100, 2)" } },
+    { "key": "inverter_efficiency", "name": { "en": "Inverter efficiency" }, "unit": "%", "quantity": "ratio", "formula": { "expression": "energy_dc > 0 ? round(energy_ac / energy_dc * 100, 2) : 0" } }
+  ],
+  "validation": [
+    { "id": "irradiation_positive", "assert": "irradiation_poa > 0", "message": { "en": "Irradiation must be > 0 to compute PR." }, "severity": "error" },
+    { "id": "capacity_positive", "assert": "capacity_stc > 0", "message": { "en": "Installed capacity must be > 0." }, "severity": "error" }
+  ],
+  "execution": { "timeoutMs": 5000, "maxEvaluationSteps": 10000, "triggers": [{ "kind": "manual" }] }
+}

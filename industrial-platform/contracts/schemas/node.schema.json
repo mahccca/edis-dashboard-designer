@@ -1,0 +1,173 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.industrial-platform.local/schemas/v1/node.schema.json",
+  "title": "Document node",
+  "description": "One node of the shared design-core document tree used by pages, templates, template parts (header/footer) and dashboards. Structural rules that need the whole tree (unique ids, slot only in templates, component definition/version existence, prop validation against the definition) are enforced by the server-side semantic validator, not here.",
+  "$ref": "#/$defs/node",
+  "$defs": {
+    "containerType": { "enum": ["root", "section", "container", "stack", "grid", "row", "column", "repeater"] },
+    "leafType": { "enum": ["heading", "text", "image", "spacer", "divider", "menu", "logo", "slot", "component"] },
+
+    "repeaterConfig": {
+      "description": "Expands children once per array element from a binding that resolves to an array.",
+      "type": "object",
+      "properties": {
+        "sourceBindingId": { "$ref": "common.schema.json#/$defs/uuid" },
+        "itemAlias": { "type": "string", "minLength": 1, "maxLength": 32, "default": "item" }
+      },
+      "required": ["sourceBindingId"],
+      "additionalProperties": false
+    },
+
+    "bindingRef": {
+      "description": "Binds a node prop to a DataBinding entity. Source details (object/variable, model output, data source) live in the DataBinding, never inline, so authz and secrets stay server-side.",
+      "type": "object",
+      "properties": {
+        "bindingId": { "$ref": "common.schema.json#/$defs/uuid" },
+        "fallback": {
+          "description": "Shown when no value is available. Must be visibly marked as stale/no-data by the renderer; never presented as a live value.",
+          "type": ["string", "number", "null"]
+        }
+      },
+      "required": ["bindingId"],
+      "additionalProperties": false
+    },
+
+    "responsiveOverride": {
+      "type": "object",
+      "properties": {
+        "hidden": { "type": "boolean" },
+        "style": { "$ref": "common.schema.json#/$defs/styleBlock" },
+        "props": { "type": "object" }
+      },
+      "additionalProperties": false
+    },
+
+    "node": {
+      "type": "object",
+      "properties": {
+        "id": { "$ref": "common.schema.json#/$defs/nodeId" },
+        "type": { "anyOf": [{ "$ref": "#/$defs/containerType" }, { "$ref": "#/$defs/leafType" }] },
+        "props": { "type": "object", "maxProperties": 64 },
+        "style": { "$ref": "common.schema.json#/$defs/styleBlock" },
+        "partStyles": {
+          "description": "Night/dark appearance: per-part style overrides (and optional key `all` for global defaults). Keys are part ids from the component definition (e.g. card, title, value).",
+          "type": "object",
+          "propertyNames": { "$ref": "common.schema.json#/$defs/key" },
+          "additionalProperties": { "$ref": "common.schema.json#/$defs/styleBlock" },
+          "maxProperties": 16
+        },
+        "partStylesDay": {
+          "description": "Day/light appearance: same shape as partStyles. Used when document settings.colorScheme is `day` (or previewed as day in the studio).",
+          "type": "object",
+          "propertyNames": { "$ref": "common.schema.json#/$defs/key" },
+          "additionalProperties": { "$ref": "common.schema.json#/$defs/styleBlock" },
+          "maxProperties": 16
+        },
+        "responsive": {
+          "type": "object",
+          "propertyNames": { "enum": ["tablet", "mobile"] },
+          "additionalProperties": { "$ref": "#/$defs/responsiveOverride" }
+        },
+        "bindings": {
+          "description": "propName -> binding. Keys must be bindable props of the node type / component definition.",
+          "type": "object",
+          "propertyNames": { "pattern": "^[a-z][a-zA-Z0-9]{0,62}$" },
+          "additionalProperties": { "$ref": "#/$defs/bindingRef" },
+          "maxProperties": 32
+        },
+        "repeater": { "$ref": "#/$defs/repeaterConfig" },
+        "component": { "$ref": "component-instance.schema.json#/$defs/definitionRef" },
+        "children": {
+          "type": "array",
+          "maxItems": 200,
+          "items": { "$ref": "#/$defs/childNode" }
+        },
+        "metadata": { "$ref": "common.schema.json#/$defs/metadata" }
+      },
+      "required": ["id", "type"],
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "if": { "properties": { "type": { "$ref": "#/$defs/leafType" } } },
+          "then": { "properties": { "children": { "maxItems": 0 } } }
+        },
+        {
+          "if": { "properties": { "type": { "const": "row" } } },
+          "then": {
+            "properties": { "children": { "items": { "properties": { "type": { "const": "column" } } } } }
+          },
+          "else": {
+            "properties": { "children": { "items": { "properties": { "type": { "not": { "const": "column" } } } } } }
+          }
+        },
+        {
+          "if": { "properties": { "type": { "const": "root" } } },
+          "then": {
+            "properties": { "children": { "items": { "properties": { "type": { "enum": ["section", "slot"] } } } } }
+          }
+        },
+        {
+          "if": { "properties": { "type": { "const": "component" } } },
+          "then": { "required": ["component"] },
+          "else": { "not": { "required": ["component"] } }
+        },
+        {
+          "if": { "properties": { "type": { "const": "repeater" } } },
+          "then": { "required": ["repeater"] },
+          "else": { "not": { "required": ["repeater"] } }
+        },
+        {
+          "if": { "properties": { "type": { "enum": ["heading", "text"] } } },
+          "then": {
+            "required": ["props"],
+            "properties": {
+              "props": {
+                "type": "object",
+                "properties": {
+                  "text": { "$ref": "common.schema.json#/$defs/localizedText" },
+                  "level": { "type": "integer", "minimum": 1, "maximum": 6 }
+                },
+                "required": ["text"]
+              }
+            }
+          }
+        },
+        {
+          "if": { "properties": { "type": { "const": "image" } } },
+          "then": {
+            "required": ["props"],
+            "properties": {
+              "props": {
+                "type": "object",
+                "properties": {
+                  "mediaId": { "$ref": "common.schema.json#/$defs/uuid" },
+                  "alt": { "$ref": "common.schema.json#/$defs/localizedText" }
+                },
+                "required": ["mediaId", "alt"]
+              }
+            }
+          }
+        },
+        {
+          "if": { "properties": { "type": { "const": "menu" } } },
+          "then": {
+            "required": ["props"],
+            "properties": { "props": { "type": "object", "properties": { "menuId": { "$ref": "common.schema.json#/$defs/uuid" } }, "required": ["menuId"] } }
+          }
+        },
+        {
+          "if": { "properties": { "type": { "not": { "enum": ["text", "heading", "image", "component"] } } } },
+          "then": { "properties": { "bindings": { "maxProperties": 0 } } }
+        }
+      ]
+    },
+
+    "childNode": {
+      "allOf": [
+        { "$ref": "#/$defs/node" },
+        { "properties": { "type": { "not": { "const": "root" } } } }
+      ]
+    }
+  }
+}

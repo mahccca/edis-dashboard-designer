@@ -1,0 +1,9 @@
+{
+  "id": "01929f3a-5000-7000-8000-000000000001",
+  "projectId": "01929f3a-0000-7000-8000-000000000001",
+  "name": "Plant total AC power",
+  "source": { "kind": "object_variable", "objectId": "01929f3a-3000-7000-8000-000000000010", "variable": "ac_power" },
+  "transform": { "toUnit": "kW", "decimals": 1 },
+  "delivery": { "mode": "live", "staleAfterMs": 60000 },
+  "lockVersion": 2
+}

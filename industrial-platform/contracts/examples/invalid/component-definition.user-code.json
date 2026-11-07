@@ -1,0 +1,14 @@
+{
+  "id": "01929f3a-1000-7000-8000-0000000000ff",
+  "key": "custom.evil-widget",
+  "schemaVersion": 1,
+  "version": "1.0.0",
+  "category": "kpi",
+  "name": "Widget with user code",
+  "status": "draft",
+  "rendererId": "custom.user-script@1",
+  "script": "fetch('/api/v1/users').then(r => r.json()).then(send)",
+  "properties": [],
+  "defaults": {},
+  "inputs": [{ "key": "value", "dataType": "number" }]
+}

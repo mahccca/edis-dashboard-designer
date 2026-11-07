@@ -1,0 +1,77 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.industrial-platform.local/schemas/v1/industrial-object.schema.json",
+  "title": "Industrial object (instance)",
+  "description": "A concrete asset (e.g. inverter INV-01). Parameter values and variable source mappings are validated against the referenced object type version by the semantic validator. Secrets never appear here; signal mappings reference a DataSource by id.",
+  "type": "object",
+  "properties": {
+    "id": { "$ref": "common.schema.json#/$defs/uuid" },
+    "projectId": { "$ref": "common.schema.json#/$defs/uuid" },
+    "typeId": { "$ref": "common.schema.json#/$defs/uuid" },
+    "typeVersion": { "$ref": "common.schema.json#/$defs/semver" },
+    "key": {
+      "description": "Unique per project; used in human-readable references.",
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9_.-]{0,99}$"
+    },
+    "name": { "$ref": "common.schema.json#/$defs/localizedText" },
+    "parentId": { "oneOf": [{ "$ref": "common.schema.json#/$defs/uuid" }, { "type": "null" }] },
+    "status": { "enum": ["active", "inactive", "decommissioned"] },
+    "parameters": {
+      "type": "object",
+      "propertyNames": { "$ref": "common.schema.json#/$defs/key" },
+      "additionalProperties": { "type": ["number", "integer", "boolean", "string"] }
+    },
+    "variableSources": {
+      "description": "variableKey -> where the live value comes from.",
+      "type": "object",
+      "propertyNames": { "$ref": "common.schema.json#/$defs/key" },
+      "additionalProperties": { "$ref": "#/$defs/variableSource" }
+    },
+    "relations": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "relationKey": { "$ref": "common.schema.json#/$defs/key" },
+          "targetObjectId": { "$ref": "common.schema.json#/$defs/uuid" }
+        },
+        "required": ["relationKey", "targetObjectId"],
+        "additionalProperties": false
+      }
+    },
+    "tags": { "type": "array", "items": { "type": "string", "pattern": "^[a-z0-9][a-z0-9:_-]{0,40}$" }, "uniqueItems": true, "maxItems": 30 },
+    "lockVersion": { "type": "integer", "minimum": 1, "readOnly": true }
+  },
+  "required": ["id", "typeId", "typeVersion", "key", "name", "status"],
+  "additionalProperties": false,
+  "$defs": {
+    "variableSource": {
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "kind": { "const": "data_source_signal" },
+            "dataSourceId": { "$ref": "common.schema.json#/$defs/uuid" },
+            "signal": { "type": "string", "minLength": 1, "maxLength": 255, "pattern": "^[A-Za-z0-9_./:-]+$" },
+            "sourceUnit": { "$ref": "common.schema.json#/$defs/unit", "description": "Unit as delivered by the source; converted to the variable unit by the unit catalog." },
+            "scale": { "type": "number" },
+            "offset": { "type": "number" }
+          },
+          "required": ["kind", "dataSourceId", "signal"],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "kind": { "const": "manual" },
+            "value": { "type": ["number", "boolean", "string"] },
+            "enteredAt": { "$ref": "common.schema.json#/$defs/timestamp" }
+          },
+          "required": ["kind", "value", "enteredAt"],
+          "additionalProperties": false
+        }
+      ]
+    }
+  }
+}

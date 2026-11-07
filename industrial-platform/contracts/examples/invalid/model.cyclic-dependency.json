@@ -1,0 +1,15 @@
+{
+  "id": "01929f3a-6000-7000-8000-0000000000f3",
+  "key": "test.cycle",
+  "schemaVersion": 1,
+  "version": "1.0.0",
+  "status": "draft",
+  "name": "Cyclic variables",
+  "inputs": [{ "key": "x", "name": "x", "unit": "" }],
+  "variables": [
+    { "key": "a", "name": "a", "unit": "", "formula": { "expression": "b + x" } },
+    { "key": "b", "name": "b", "unit": "", "formula": { "expression": "a * 2" } }
+  ],
+  "outputs": [{ "key": "y", "name": "y", "unit": "", "formula": { "expression": "a" } }],
+  "execution": { "timeoutMs": 1000, "triggers": [{ "kind": "manual" }] }
+}

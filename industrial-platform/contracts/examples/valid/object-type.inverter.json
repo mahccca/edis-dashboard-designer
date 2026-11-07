@@ -1,0 +1,36 @@
+{
+  "id": "01929f3a-2000-7000-8000-000000000001",
+  "key": "solar.inverter",
+  "schemaVersion": 1,
+  "version": "1.0.0",
+  "status": "published",
+  "category": "inverter",
+  "name": { "fa": "اینورتر", "en": "PV inverter" },
+  "icon": "inverter",
+  "parameters": [
+    { "key": "rated_ac_power", "name": { "en": "Rated AC power" }, "dataType": "number", "unit": "kW", "quantity": "power", "required": true, "minimum": 0 },
+    { "key": "dc_capacity", "name": { "en": "Connected DC capacity" }, "dataType": "number", "unit": "kWp", "quantity": "power", "required": true, "minimum": 0 },
+    { "key": "manufacturer", "name": { "en": "Manufacturer" }, "dataType": "string" }
+  ],
+  "variables": [
+    { "key": "ac_power", "name": { "fa": "توان AC", "en": "AC power" }, "dataType": "number", "unit": "kW", "quantity": "power", "access": "read", "historized": true },
+    { "key": "pv_power", "name": { "fa": "توان DC", "en": "PV (DC) power" }, "dataType": "number", "unit": "kW", "quantity": "power", "access": "read", "historized": true },
+    { "key": "energy_today", "name": { "en": "Energy today" }, "dataType": "number", "unit": "kWh", "quantity": "energy", "access": "read", "historized": true },
+    { "key": "state", "name": { "en": "Operating state" }, "dataType": "enum", "enumValues": ["running", "standby", "fault", "offline"], "access": "read" }
+  ],
+  "statusModel": {
+    "sourceVariable": "state",
+    "states": [
+      { "key": "running", "label": { "fa": "در حال کار", "en": "Running" }, "severity": "ok" },
+      { "key": "standby", "label": { "en": "Standby" }, "severity": "info" },
+      { "key": "fault", "label": { "fa": "خطا", "en": "Fault" }, "severity": "fault" },
+      { "key": "offline", "label": { "en": "Offline" }, "severity": "offline" }
+    ]
+  },
+  "alarms": [
+    { "key": "low_conversion", "name": { "en": "Low DC/AC conversion" }, "severity": "medium", "condition": "pv_power > 5 && ac_power / pv_power < 0.9", "delaySeconds": 600 }
+  ],
+  "relations": [
+    { "key": "junction_box", "kind": "located_in", "targetTypeKey": "solar.junction-box", "cardinality": "one" }
+  ]
+}

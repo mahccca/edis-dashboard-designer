@@ -1,0 +1,50 @@
+.shell {
+  min-height: 100vh;
+  background: var(--color-surface-base, #0f1419);
+  color: var(--color-text-primary, #e6edf3);
+}
+
+.shell[data-theme="day"] {
+  background: #f0f3f7;
+  color: #1f2328;
+}
+
+.message {
+  padding: 48px;
+  text-align: center;
+  font-family: system-ui, sans-serif;
+  color: inherit;
+  opacity: 0.75;
+  min-height: 100vh;
+}
+
+.message a { color: #f5a524; }
+.shell[data-theme="day"] .message a { color: #0969da; }
+
+.themeToggle {
+  position: fixed;
+  inset-inline-start: 12px;
+  top: 12px;
+  z-index: 20;
+}
+
+.status {
+  position: fixed;
+  inset-inline-end: 8px;
+  bottom: 8px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font: 0.7rem system-ui, sans-serif;
+  background: var(--color-surface-raised, #18202a);
+  color: var(--color-text-muted, #8b98a5);
+  border: 1px solid var(--color-border-subtle, #2a3440);
+}
+
+.shell[data-theme="day"] .status {
+  background: #ffffff;
+  color: #656d76;
+  border-color: #d0d7de;
+}
+
+.status[data-status="live"] { color: #3fb950; }
+.status[data-status="error"] { color: #f85149; }

@@ -1,0 +1,41 @@
+{
+  "id": "01929f3a-1000-7000-8000-000000000003",
+  "key": "industrial.image",
+  "schemaVersion": 1,
+  "version": "1.0.0",
+  "category": "symbol",
+  "name": { "fa": "تصویر", "en": "Image" },
+  "description": { "fa": "ویجت تصویر از آدرس URL (پراپ یا بایندینگ).", "en": "Image widget from a URL (prop or binding)." },
+  "status": "published",
+  "rendererId": "builtin.image@1",
+  "properties": [
+    { "key": "src", "label": { "fa": "آدرس تصویر", "en": "Image URL" }, "type": "string", "maxLength": 2000, "bindable": true, "group": "content" },
+    { "key": "alt", "label": { "fa": "متن جایگزین", "en": "Alt text" }, "type": "string", "maxLength": 200, "group": "content" },
+    { "key": "objectFit", "label": { "fa": "نحوهٔ نمایش", "en": "Object fit" }, "type": "enum", "enum": ["contain", "cover", "fill"], "group": "layout" },
+    { "key": "height", "label": { "fa": "ارتفاع (px)", "en": "Height (px)" }, "type": "integer", "minimum": 40, "maximum": 1200, "group": "layout" }
+  ],
+  "defaults": { "src": "", "alt": "", "objectFit": "contain", "height": 160 },
+  "inputs": [
+    { "key": "src", "label": { "fa": "آدرس", "en": "Source URL" }, "dataType": "string" }
+  ],
+  "bindings": [
+    { "input": "src", "allowedSources": ["data_source_signal", "static"] }
+  ],
+  "style": {
+    "parts": [
+      { "part": "frame", "allowed": ["background", "borderRadius", "padding", "width", "height"] }
+    ],
+    "tokens": ["color.surface.raised", "radius.md"],
+    "defaults": { "borderRadius": { "$token": "radius.md" } }
+  },
+  "layoutConstraints": {
+    "minWidth": 80,
+    "minHeight": 80,
+    "resizable": true,
+    "allowedParents": ["column", "grid", "stack", "container"],
+    "allowedDocumentTypes": ["page", "dashboard", "template"]
+  },
+  "permissions": { "use": ["component.use"], "edit": ["component.edit"] },
+  "compatibility": { "minPlatformVersion": "0.1.0" },
+  "changelog": "1.0.0: initial image widget."
+}

@@ -1,0 +1,44 @@
+# Dev-only MongoDB (single-node replica set rs0 — required for multi-document transactions, ADR-0015).
+#   cp infra/.env.example infra/.env   (set IP_MONGO_ROOT_PASSWORD and IP_MONGO_KEYFILE)
+#   docker compose -f infra/compose.yaml --env-file infra/.env up -d
+# The healthcheck initiates the replica set on first start (member host 127.0.0.1:27018, so clients on the host
+# machine can follow the replica-set topology). Then, from backend/:
+#   IP_MONGODB_ADMIN_URL="mongodb://ip_admin:<root pw>@127.0.0.1:27018/?replicaSet=rs0&authSource=admin" \
+#   IP_MONGODB_URL=$IP_MONGODB_ADMIN_URL IP_MONGODB_DB=ip_dev python -m app.cli migrate
+#   IP_NEW_APP_USER_PASSWORD=<app pw> ... python -m app.cli provision-app-user --username ip_app
+#   IP_MONGODB_URL="mongodb://ip_app:<app pw>@127.0.0.1:27018/ip_dev?replicaSet=rs0&authSource=ip_dev"
+name: industrial-platform-dev
+
+services:
+  mongo:
+    image: mongo:9.0
+    # keyFile auth is mandatory for a replica set with authorization; it is written from the env at start-up
+    # with the owner/mode mongod requires.
+    entrypoint: ["bash", "-c"]
+    command:
+      - |
+        printf '%s' "$$IP_MONGO_KEYFILE" > /etc/mongo-keyfile && chmod 400 /etc/mongo-keyfile && chown 999:999 /etc/mongo-keyfile
+        exec docker-entrypoint.sh mongod --port 27018 --bind_ip_all --replSet rs0 --keyFile /etc/mongo-keyfile
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ip_admin
+      MONGO_INITDB_ROOT_PASSWORD: ${IP_MONGO_ROOT_PASSWORD:?set IP_MONGO_ROOT_PASSWORD in infra/.env}
+      IP_MONGO_KEYFILE: ${IP_MONGO_KEYFILE:?set IP_MONGO_KEYFILE in infra/.env}
+    ports:
+      - "127.0.0.1:27018:27018"
+    volumes:
+      - ip-mongodata:/data/db
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - >-
+          mongosh --port 27018 -u ip_admin -p "$$MONGO_INITDB_ROOT_PASSWORD" --authenticationDatabase admin --quiet
+          --eval "try { rs.status().ok } catch (e) { rs.initiate({_id: 'rs0', members: [{_id: 0, host: '127.0.0.1:27018'}]}).ok }"
+          | grep -q 1
+      interval: 5s
+      timeout: 10s
+      retries: 30
+      start_period: 10s
+    restart: unless-stopped
+
+volumes:
+  ip-mongodata:

@@ -1,0 +1,11 @@
+{
+  "id": "01929f3a-6000-7000-8000-0000000000f1",
+  "key": "test.injection",
+  "schemaVersion": 1,
+  "version": "1.0.0",
+  "status": "draft",
+  "name": "Injection attempt",
+  "inputs": [{ "key": "x", "name": "x", "unit": "" }],
+  "outputs": [{ "key": "y", "name": "y", "unit": "", "formula": { "expression": "__import__('os').system('id')" } }],
+  "execution": { "timeoutMs": 1000, "triggers": [{ "kind": "manual" }] }
+}

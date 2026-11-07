@@ -1,0 +1,84 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.industrial-platform.local/schemas/v1/template-part.schema.json",
+  "title": "Template part (Header / Footer)",
+  "description": "Header/footer resource. Display conditions are relational rows (display_conditions table) edited with the draft and frozen into the published version; they are exposed here as an array for convenience.",
+  "type": "object",
+  "properties": {
+    "id": { "$ref": "common.schema.json#/$defs/uuid", "readOnly": true },
+    "projectId": { "$ref": "common.schema.json#/$defs/uuid", "readOnly": true },
+    "partType": { "enum": ["header", "footer"] },
+    "name": { "type": "string", "minLength": 1, "maxLength": 120 },
+    "priority": {
+      "description": "Higher wins when several published parts of the same type match a page.",
+      "type": "integer", "minimum": 0, "maximum": 1000
+    },
+    "displayConditions": {
+      "type": "array",
+      "maxItems": 50,
+      "items": { "$ref": "#/$defs/displayCondition" }
+    },
+    "status": { "$ref": "common.schema.json#/$defs/publishStatus", "readOnly": true },
+    "headRevision": { "type": "integer", "minimum": 1, "readOnly": true },
+    "document": {
+      "allOf": [
+        { "$ref": "document.schema.json" },
+        { "properties": { "documentType": { "const": "template_part" } } }
+      ]
+    }
+  },
+  "required": ["partType", "name", "document"],
+  "additionalProperties": false,
+  "$defs": {
+    "displayCondition": {
+      "description": "Evaluation: a part matches a page if at least one include rule matches and no exclude rule matches.",
+      "type": "object",
+      "properties": {
+        "mode": { "enum": ["include", "exclude"] },
+        "rule": {
+          "oneOf": [
+            {
+              "type": "object",
+              "properties": { "kind": { "const": "entire_site" } },
+              "required": ["kind"], "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "properties": {
+                "kind": { "const": "pages" },
+                "pageIds": { "type": "array", "items": { "$ref": "common.schema.json#/$defs/uuid" }, "minItems": 1, "maxItems": 500, "uniqueItems": true }
+              },
+              "required": ["kind", "pageIds"], "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "properties": {
+                "kind": { "const": "path_prefix" },
+                "prefix": { "type": "string", "pattern": "^/[a-z0-9/-]*$", "maxLength": 255 }
+              },
+              "required": ["kind", "prefix"], "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "properties": {
+                "kind": { "const": "template" },
+                "templateId": { "$ref": "common.schema.json#/$defs/uuid" }
+              },
+              "required": ["kind", "templateId"], "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "properties": {
+                "kind": { "const": "page_kind" },
+                "pageKind": { "enum": ["page", "dashboard"] }
+              },
+              "required": ["kind", "pageKind"], "additionalProperties": false
+            }
+          ]
+        }
+      },
+      "required": ["mode", "rule"],
+      "additionalProperties": false
+    }
+  }
+}

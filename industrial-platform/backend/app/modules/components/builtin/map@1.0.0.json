@@ -1,0 +1,78 @@
+{
+  "id": "01929f3a-1000-7000-8000-000000000005",
+  "key": "industrial.map",
+  "schemaVersion": 1,
+  "version": "1.0.0",
+  "category": "symbol",
+  "name": { "fa": "نقشه", "en": "Map" },
+  "description": {
+    "fa": "نقشهٔ سلسله‌مراتبی جهان → قاره → کشور → استان → شهر؛ فقط GeoJSON همان ناحیه لود می‌شود.",
+    "en": "Hierarchical map world→continent→country→province→city; only the selected region's GeoJSON is fetched."
+  },
+  "status": "published",
+  "rendererId": "builtin.map@1",
+  "properties": [
+    { "key": "title", "label": { "fa": "عنوان", "en": "Title" }, "type": "string", "maxLength": 120, "group": "content" },
+    {
+      "key": "level",
+      "label": { "fa": "سطح", "en": "Level" },
+      "type": "enum",
+      "enum": ["world", "continent", "country", "province", "city"],
+      "required": true,
+      "group": "scope",
+      "help": {
+        "fa": "با عوض کردن سطح، فقط فایل همان سطح از /geo بارگذاری می‌شود.",
+        "en": "Changing level fetches only that scope's file from /geo."
+      }
+    },
+    {
+      "key": "region",
+      "label": { "fa": "کد ناحیه", "en": "Region code" },
+      "type": "string",
+      "maxLength": 32,
+      "required": true,
+      "group": "scope",
+      "help": {
+        "fa": "نمونه‌ها: WORLD | AS | 364 (ایران، شکل واقعی) | IR-07 (استان تهران) | IR-THR (شهر)",
+        "en": "Examples: WORLD | AS | 364 (Iran real outline) | IR-07 (Tehran province) | IR-THR (city)"
+      }
+    },
+    { "key": "showLabels", "label": { "fa": "برچسب‌ها", "en": "Show labels" }, "type": "boolean", "group": "style" },
+    { "key": "height", "label": { "fa": "ارتفاع (px)", "en": "Height (px)" }, "type": "integer", "minimum": 160, "maximum": 900, "group": "layout" }
+  ],
+  "defaults": {
+    "title": "نقشه",
+    "level": "country",
+    "region": "364",
+    "showLabels": true,
+    "height": 420
+  },
+  "inputs": [
+    {
+      "key": "metrics",
+      "label": { "fa": "مقادیر ناحیه‌ها (id/value)", "en": "Region metrics (id/value)" },
+      "dataType": "table"
+    }
+  ],
+  "bindings": [
+    { "input": "metrics", "allowedSources": ["data_source_signal", "static"] }
+  ],
+  "style": {
+    "parts": [
+      { "part": "frame", "allowed": ["background", "borderRadius", "padding", "width", "height"] },
+      { "part": "title", "allowed": ["color", "fontSize", "fontFamily"] }
+    ],
+    "tokens": ["color.surface.raised", "color.accent.primary"],
+    "defaults": { "padding": { "$token": "space.md" }, "borderRadius": { "$token": "radius.md" } }
+  },
+  "layoutConstraints": {
+    "minWidth": 240,
+    "minHeight": 200,
+    "resizable": true,
+    "allowedParents": ["column", "grid", "stack", "container"],
+    "allowedDocumentTypes": ["page", "dashboard", "template"]
+  },
+  "permissions": { "use": ["component.use"], "edit": ["component.edit"] },
+  "compatibility": { "minPlatformVersion": "0.1.0" },
+  "changelog": "1.0.0: progressive hierarchical map with per-region GeoJSON."
+}

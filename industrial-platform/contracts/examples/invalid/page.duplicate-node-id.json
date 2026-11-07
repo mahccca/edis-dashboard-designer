@@ -1,0 +1,17 @@
+{
+  "title": "Duplicate ids",
+  "slug": "duplicate-ids",
+  "path": "/dup",
+  "document": {
+    "schemaVersion": 1,
+    "documentType": "page",
+    "root": {
+      "id": "root",
+      "type": "root",
+      "children": [
+        { "id": "sec-a", "type": "section", "children": [{ "id": "txt-a", "type": "text", "props": { "text": "one" } }] },
+        { "id": "sec-b", "type": "section", "children": [{ "id": "txt-a", "type": "text", "props": { "text": "two" } }] }
+      ]
+    }
+  }
+}

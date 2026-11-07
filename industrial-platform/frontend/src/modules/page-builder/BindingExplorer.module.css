@@ -1,0 +1,228 @@
+.shell {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+}
+
+.tabs {
+  display: inline-flex;
+  gap: 2px;
+  padding: 3px;
+  border-radius: 10px;
+  border: 1px solid #2a3440;
+  background: #0f1419;
+  align-self: stretch;
+}
+
+.tab {
+  flex: 1;
+  border: none;
+  background: transparent;
+  color: #8b98a5;
+  padding: 7px 10px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 0.8rem;
+}
+
+.tabActive {
+  background: #243040;
+  color: #e6edf3;
+  font-weight: 600;
+}
+
+.panel {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+
+.toolbar {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.crumb {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  font-size: 0.75rem;
+  color: #8b98a5;
+}
+
+.crumbStrong {
+  color: #e6edf3;
+  font-weight: 600;
+}
+
+.viewer {
+  border: 1px solid #2a3440;
+  border-radius: 10px;
+  background: #0c1117;
+  max-height: 320px;
+  overflow: auto;
+  padding: 6px 4px;
+}
+
+.treeRow {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 6px;
+  align-items: start;
+  width: 100%;
+  border: none;
+  background: transparent;
+  color: #c9d1d9;
+  text-align: start;
+  padding: 3px 8px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 12px;
+  font-family: ui-monospace, "Cascadia Code", Consolas, monospace;
+  direction: ltr;
+}
+
+.treeRow:hover {
+  background: rgba(245, 165, 36, 0.08);
+}
+
+.treeRowSelected {
+  background: rgba(245, 165, 36, 0.18);
+  outline: 1px solid rgba(245, 165, 36, 0.45);
+}
+
+.twist {
+  width: 14px;
+  color: #6e7681;
+  user-select: none;
+}
+
+.key {
+  color: #79c0ff;
+}
+
+.punct {
+  color: #6e7681;
+}
+
+.typeTag {
+  color: #6e7681;
+  font-size: 10px;
+}
+
+.scalar {
+  color: #a5d6ff;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 180px;
+}
+
+.scalarString { color: #a5d6ff; }
+.scalarNumber { color: #ffa657; }
+.scalarBool { color: #ff7b72; }
+.scalarNull { color: #8b98a5; font-style: italic; }
+
+.children {
+  margin-inline-start: 12px;
+  border-inline-start: 1px solid #21262d;
+  padding-inline-start: 4px;
+}
+
+.selectionBar {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  border: 1px solid #2a3440;
+  background: #141b24;
+}
+
+.selectionPath {
+  font-family: ui-monospace, Consolas, monospace;
+  font-size: 11px;
+  direction: ltr;
+  color: #e6edf3;
+  word-break: break-all;
+}
+
+.selectionMeta {
+  font-size: 11px;
+  color: #8b98a5;
+}
+
+.optionList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-height: 220px;
+  overflow: auto;
+}
+
+.optionBtn {
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  align-items: center;
+  text-align: start;
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid #2a3440;
+  background: #121920;
+  color: #e6edf3;
+  cursor: pointer;
+  font-size: 0.8rem;
+}
+
+.optionBtn:hover:not(:disabled) {
+  border-color: #3d4a5c;
+  background: #18202a;
+}
+
+.optionBtnSelected {
+  border-color: #f5a524;
+  background: rgba(245, 165, 36, 0.12);
+}
+
+.optionLabel {
+  direction: ltr;
+  font-family: ui-monospace, Consolas, monospace;
+  font-size: 12px;
+}
+
+.optionHint {
+  color: #8b98a5;
+  font-size: 11px;
+  flex-shrink: 0;
+}
+
+.advanced {
+  border-top: 1px dashed #2a3440;
+  padding-top: 8px;
+}
+
+.advanced summary {
+  cursor: pointer;
+  color: #8b98a5;
+  font-size: 0.78rem;
+  list-style: none;
+}
+
+.advanced summary::-webkit-details-marker { display: none; }
+
+.empty {
+  color: #6e7681;
+  font-size: 0.78rem;
+  padding: 12px;
+  text-align: center;
+}

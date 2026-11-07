@@ -1,0 +1,118 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.industrial-platform.local/schemas/v1/industrial-object-type.schema.json",
+  "title": "Industrial object type (one version)",
+  "description": "Defines the shape of a class of industrial objects (inverter, PV string, weather station, meter...). Objects reference an exact type version. Adding optional members = new minor version; removing/retyping members = new major version with an explicit object migration.",
+  "type": "object",
+  "properties": {
+    "id": { "$ref": "common.schema.json#/$defs/uuid" },
+    "key": { "$ref": "common.schema.json#/$defs/qualifiedKey" },
+    "schemaVersion": { "const": 1 },
+    "version": { "$ref": "common.schema.json#/$defs/semver" },
+    "status": { "$ref": "common.schema.json#/$defs/publishStatus" },
+    "category": { "enum": ["site", "equipment", "inverter", "sensor", "meter", "energy_system", "weather_station", "generic"] },
+    "name": { "$ref": "common.schema.json#/$defs/localizedText" },
+    "description": { "$ref": "common.schema.json#/$defs/localizedText" },
+    "icon": { "type": "string", "pattern": "^[a-z0-9-]{1,40}$" },
+    "parameters": {
+      "description": "Static attributes set per object (nameplate data, configuration).",
+      "type": "array",
+      "maxItems": 100,
+      "items": { "$ref": "#/$defs/member" }
+    },
+    "variables": {
+      "description": "Time-varying values (measurements, setpoints). Their live source is mapped per object.",
+      "type": "array",
+      "maxItems": 200,
+      "items": {
+        "allOf": [
+          { "$ref": "#/$defs/member" },
+          {
+            "properties": {
+              "access": { "enum": ["read", "read_write"] },
+              "historized": { "type": "boolean" }
+            }
+          }
+        ]
+      }
+    },
+    "statusModel": {
+      "type": "object",
+      "properties": {
+        "sourceVariable": { "$ref": "common.schema.json#/$defs/key" },
+        "states": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "properties": {
+              "key": { "$ref": "common.schema.json#/$defs/key" },
+              "label": { "$ref": "common.schema.json#/$defs/localizedText" },
+              "severity": { "enum": ["ok", "info", "warning", "fault", "offline"] },
+              "when": { "$ref": "common.schema.json#/$defs/expression" }
+            },
+            "required": ["key", "label", "severity"],
+            "additionalProperties": false
+          }
+        }
+      },
+      "required": ["states"],
+      "additionalProperties": false
+    },
+    "alarms": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "key": { "$ref": "common.schema.json#/$defs/key" },
+          "name": { "$ref": "common.schema.json#/$defs/localizedText" },
+          "severity": { "enum": ["low", "medium", "high", "critical"] },
+          "condition": { "$ref": "common.schema.json#/$defs/expression" },
+          "delaySeconds": { "type": "integer", "minimum": 0, "maximum": 86400 }
+        },
+        "required": ["key", "name", "severity", "condition"],
+        "additionalProperties": false
+      }
+    },
+    "relations": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "key": { "$ref": "common.schema.json#/$defs/key" },
+          "kind": { "enum": ["contains", "feeds", "measures", "located_in"] },
+          "targetTypeKey": { "$ref": "common.schema.json#/$defs/qualifiedKey" },
+          "cardinality": { "enum": ["one", "many"] }
+        },
+        "required": ["key", "kind", "targetTypeKey", "cardinality"],
+        "additionalProperties": false
+      }
+    }
+  },
+  "required": ["id", "key", "schemaVersion", "version", "status", "category", "name", "variables"],
+  "additionalProperties": false,
+  "$defs": {
+    "member": {
+      "type": "object",
+      "properties": {
+        "key": { "$ref": "common.schema.json#/$defs/key" },
+        "name": { "$ref": "common.schema.json#/$defs/localizedText" },
+        "dataType": { "$ref": "common.schema.json#/$defs/dataType" },
+        "unit": { "$ref": "common.schema.json#/$defs/unit" },
+        "quantity": { "type": "string", "enum": ["power", "energy", "voltage", "current", "frequency", "temperature", "irradiance", "irradiation", "ratio", "count", "duration", "none"] },
+        "required": { "type": "boolean" },
+        "default": {},
+        "minimum": { "type": "number" },
+        "maximum": { "type": "number" },
+        "enumValues": { "type": "array", "items": { "type": "string" }, "minItems": 1, "uniqueItems": true },
+        "access": true,
+        "historized": true
+      },
+      "required": ["key", "name", "dataType"],
+      "additionalProperties": false,
+      "allOf": [
+        { "if": { "properties": { "dataType": { "const": "enum" } } }, "then": { "required": ["enumValues"] } }
+      ]
+    }
+  }
+}

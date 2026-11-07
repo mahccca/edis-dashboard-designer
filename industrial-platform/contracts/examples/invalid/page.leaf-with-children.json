@@ -1,0 +1,27 @@
+{
+  "title": "Leaf with children",
+  "slug": "leaf-children",
+  "path": "/leaf",
+  "document": {
+    "schemaVersion": 1,
+    "documentType": "page",
+    "root": {
+      "id": "root",
+      "type": "root",
+      "children": [
+        {
+          "id": "sec-a",
+          "type": "section",
+          "children": [
+            {
+              "id": "txt-a",
+              "type": "text",
+              "props": { "text": "hello" },
+              "children": [{ "id": "txt-b", "type": "text", "props": { "text": "nested" } }]
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

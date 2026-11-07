@@ -1,0 +1,147 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.industrial-platform.local/schemas/v1/common.schema.json",
+  "title": "Common definitions",
+  "description": "Shared primitives referenced by every other contract schema. Not a document type by itself.",
+  "$defs": {
+    "uuid": {
+      "description": "Entity id. UUID (v7 generated server-side; time-ordered).",
+      "type": "string",
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+    },
+    "nodeId": {
+      "description": "Document-local node id. Stable across revisions; unique inside one document (checked semantically, not by schema).",
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_-]{2,63}$"
+    },
+    "key": {
+      "description": "Machine key (stable identifier used in references, formulas and bindings).",
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_]{0,62}$"
+    },
+    "qualifiedKey": {
+      "description": "Namespaced key, e.g. 'industrial.kpi-card' or 'solar.inverter'.",
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9-]*(\\.[a-z][a-z0-9-]*){1,3}$"
+    },
+    "slug": {
+      "type": "string",
+      "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
+      "maxLength": 120
+    },
+    "semver": {
+      "description": "Semantic version MAJOR.MINOR.PATCH (no pre-release in v1).",
+      "type": "string",
+      "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$"
+    },
+    "semverRange": {
+      "description": "Caret range on a major version, e.g. '^1.2.0'. Only caret ranges are allowed in v1.",
+      "type": "string",
+      "pattern": "^\\^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$"
+    },
+    "schemaVersion": {
+      "description": "Integer version of the contract the JSON conforms to. Bumped only with a registered migration.",
+      "type": "integer",
+      "minimum": 1
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "localizedText": {
+      "description": "Plain text (never HTML). Either a single string or a per-locale map.",
+      "oneOf": [
+        { "type": "string", "maxLength": 2000 },
+        {
+          "type": "object",
+          "propertyNames": { "pattern": "^[a-z]{2}(-[A-Z]{2})?$" },
+          "additionalProperties": { "type": "string", "maxLength": 2000 },
+          "minProperties": 1
+        }
+      ]
+    },
+    "unit": {
+      "description": "Unit symbol from the platform unit catalog (UCUM-like). Empty string = dimensionless.",
+      "type": "string",
+      "maxLength": 32,
+      "pattern": "^[A-Za-z0-9%/^*.·°_ -]*$"
+    },
+    "publishStatus": {
+      "type": "string",
+      "enum": ["draft", "published", "deprecated", "archived"]
+    },
+    "dataType": {
+      "type": "string",
+      "enum": ["number", "integer", "boolean", "string", "enum", "timestamp"]
+    },
+    "tokenRef": {
+      "description": "Reference to a design token of the active theme, e.g. {\"$token\": \"color.surface.raised\"}.",
+      "type": "object",
+      "properties": {
+        "$token": { "type": "string", "pattern": "^[a-z][a-zA-Z0-9]*(\\.[a-zA-Z0-9-]+){1,4}$" }
+      },
+      "required": ["$token"],
+      "additionalProperties": false
+    },
+    "cssLength": {
+      "description": "Restricted CSS length. No calc()/url()/expressions: values are emitted into CSS custom properties.",
+      "type": "string",
+      "pattern": "^(0|auto|-?[0-9]+(\\.[0-9]+)?(px|rem|em|%|vh|vw|fr))$"
+    },
+    "color": {
+      "description": "Hex/rgb(a) color literal. Named CSS keywords and functions other than rgb/rgba are rejected.",
+      "type": "string",
+      "pattern": "^(#[0-9a-fA-F]{3,8}|rgba?\\(\\s*[0-9]{1,3}\\s*,\\s*[0-9]{1,3}\\s*,\\s*[0-9]{1,3}\\s*(,\\s*(0|1|0?\\.[0-9]+)\\s*)?\\)|transparent)$"
+    },
+    "styleValue": {
+      "oneOf": [
+        { "$ref": "#/$defs/tokenRef" },
+        { "$ref": "#/$defs/cssLength" },
+        { "$ref": "#/$defs/color" },
+        { "type": "number" },
+        { "type": "string", "pattern": "^[a-z][a-z-]{0,31}$", "description": "Enumerated CSS keyword (e.g. 'flex-start', 'bold'); the style engine whitelists keywords per property." }
+      ]
+    },
+    "styleBlock": {
+      "description": "Whitelisted style properties. Free-form CSS is not accepted.",
+      "type": "object",
+      "propertyNames": {
+        "enum": [
+          "display", "direction", "gap", "align", "justify", "wrap",
+          "padding", "paddingX", "paddingY", "margin", "marginX", "marginY",
+          "width", "minWidth", "maxWidth", "height", "minHeight", "maxHeight",
+          "gridColumns", "gridRows", "columnSpan", "rowSpan",
+          "background", "color", "borderColor", "borderWidth", "borderRadius", "shadow",
+          "fontFamily", "fontSize", "fontWeight", "lineHeight", "textAlign", "opacity", "overflow"
+        ]
+      },
+      "additionalProperties": { "$ref": "#/$defs/styleValue" }
+    },
+    "metadata": {
+      "description": "Editor-only metadata. Ignored by the runtime renderer.",
+      "type": "object",
+      "properties": {
+        "label": { "type": "string", "maxLength": 120 },
+        "locked": { "type": "boolean" },
+        "hiddenInEditor": { "type": "boolean" },
+        "notes": { "type": "string", "maxLength": 2000 }
+      },
+      "additionalProperties": false
+    },
+    "breakpoint": {
+      "type": "string",
+      "enum": ["desktop", "tablet", "mobile"]
+    },
+    "permissionKey": {
+      "type": "string",
+      "pattern": "^[a-z_]+\\.[a-z_]+$"
+    },
+    "expression": {
+      "description": "Formula in the platform expression grammar (see expression.schema.json). Character whitelist blocks quotes, brackets, backslashes, semicolons and assignment; the server parser is authoritative.",
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 2000,
+      "pattern": "^[A-Za-z0-9_+\\-*/^%()., <>=!?:&|]+$"
+    }
+  }
+}

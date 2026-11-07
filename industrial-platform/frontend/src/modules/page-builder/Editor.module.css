@@ -1,0 +1,136 @@
+.editor { display: flex; flex-direction: column; height: 100vh; }
+
+.toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-bottom: 1px solid #2a3440;
+  background: #121920;
+}
+
+.spacer { flex: 1; }
+
+.toolGroup {
+  display: inline-flex;
+  gap: 4px;
+  padding: 2px;
+  border-radius: 8px;
+  border: 1px solid #2a3440;
+  background: #0f1419;
+}
+
+.iconTool {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  padding-inline: 0;
+}
+
+.canvasNight { background: #0b0f13; }
+.canvasDay { background: #e8eef5; }
+
+.body {
+  flex: 1;
+  display: grid;
+  grid-template-columns: var(--layers-width, 280px) minmax(0, 1fr) 340px;
+  min-height: 0;
+}
+
+.layersColumn { position: relative; display: flex; min-height: 0; min-width: 0; }
+.layersColumn > .panel { flex: 1; min-width: 0; }
+
+.resizeHandle {
+  position: absolute;
+  inset-block: 0;
+  inset-inline-end: -4px;
+  width: 8px;
+  z-index: 5;
+  cursor: col-resize;
+  touch-action: none;
+}
+.resizeHandle::after {
+  content: "";
+  position: absolute;
+  inset-block: 0;
+  inset-inline-start: 3px;
+  width: 2px;
+  background: transparent;
+  transition: background 0.15s;
+}
+.resizeHandle:hover::after, .resizeHandle:focus-visible::after, .resizeHandleActive::after { background: #f5a524; }
+.resizeHandle:focus-visible { outline: none; }
+.resizeHandleActive { cursor: col-resize; }
+
+@media (max-width: 1023px), (pointer: coarse) {
+  .body { grid-template-columns: 280px minmax(0, 1fr) 340px; }
+  .resizeHandle { display: none; }
+}
+
+.canvas { overflow: auto; }
+
+.side { overflow: auto; border-inline-start: 1px solid #2a3440; }
+
+.panel {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  border-inline-end: 1px solid #2a3440;
+  overflow: auto;
+}
+
+.panelTitle {
+  margin-top: 8px;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #8b98a5;
+}
+
+.tree { list-style: none; margin: 0; padding: 0; }
+.tree .tree { margin-inline-start: 11px; padding-inline-start: 6px; border-inline-start: 1px solid #2a3440; }
+
+.layer { display: flex; align-items: center; gap: 2px; border-radius: 4px; padding-inline-start: 2px; }
+
+.toggle, .togglePlaceholder {
+  width: 18px;
+  flex: none;
+  border: 0;
+  background: transparent;
+  color: #8b98a5;
+  cursor: pointer;
+  font-size: 0.7rem;
+  padding: 0;
+}
+.togglePlaceholder { cursor: default; }
+
+.handle { flex: none; color: #6e7681; cursor: grab; user-select: none; font-size: 0.8rem; padding: 0 2px; }
+.layer:hover .handle { color: #f5a524; }
+
+.layerType { flex: none; font-size: 0.65rem; color: #6e7681; text-transform: uppercase; }
+.layerSelected { background: rgba(245, 165, 36, 0.15); }
+.layerError { box-shadow: inset 3px 0 0 #f85149; }
+
+.layerName {
+  flex: 1;
+  padding: 4px 6px;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  text-align: start;
+  cursor: pointer;
+  font-size: 0.85rem;
+}
+
+.layerDragging { opacity: 0.4; }
+.dropBefore { box-shadow: inset 0 2px 0 #f5a524; }
+.dropAfter { box-shadow: inset 0 -2px 0 #f5a524; }
+.dropInside { outline: 1px dashed #f5a524; outline-offset: -1px; background: rgba(245, 165, 36, 0.08); }
+.layer[draggable="true"]:active { cursor: grabbing; }
+
+.layerActions { display: flex; gap: 2px; }
+.layerActions button { padding: 2px 6px; }
+
+.addGrid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }

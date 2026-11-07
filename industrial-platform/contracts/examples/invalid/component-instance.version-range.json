@@ -1,0 +1,9 @@
+{
+  "id": "kpi-floating",
+  "type": "component",
+  "component": {
+    "definitionId": "01929f3a-1000-7000-8000-000000000001",
+    "version": "^1.0.0"
+  },
+  "props": { "title": "Unpinned" }
+}

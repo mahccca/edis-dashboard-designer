@@ -1,0 +1,65 @@
+{
+  "id": "01929f3a-1000-7000-8000-000000000001",
+  "key": "industrial.kpi-card",
+  "schemaVersion": 1,
+  "version": "1.2.0",
+  "category": "kpi",
+  "name": { "fa": "کارت شاخص (KPI)", "en": "KPI card" },
+  "description": { "en": "Single numeric value with unit, freshness indicator and warning/critical thresholds." },
+  "status": "published",
+  "rendererId": "builtin.kpi-card@1",
+  "properties": [
+    { "key": "title", "label": { "fa": "عنوان", "en": "Title" }, "type": "string", "required": true, "maxLength": 80, "group": "content" },
+    { "key": "decimals", "label": { "fa": "تعداد اعشار", "en": "Decimals" }, "type": "integer", "minimum": 0, "maximum": 4, "group": "format" },
+    { "key": "showUnit", "label": { "en": "Show unit" }, "type": "boolean", "group": "format" },
+    { "key": "warnBelow", "label": { "en": "Warning below" }, "type": "number", "group": "thresholds" },
+    { "key": "critBelow", "label": { "en": "Critical below" }, "type": "number", "group": "thresholds" },
+    { "key": "accent", "label": { "en": "Accent color" }, "type": "token", "group": "style" },
+    { "key": "size", "label": { "en": "Size" }, "type": "enum", "enum": ["sm", "md", "lg"], "group": "style" }
+  ],
+  "defaults": { "title": "KPI", "decimals": 1, "showUnit": true, "accent": "color.accent.primary", "size": "md" },
+  "inputs": [
+    { "key": "value", "label": { "en": "Value" }, "dataType": "number", "required": true },
+    { "key": "timestamp", "label": { "en": "Value time" }, "dataType": "timestamp" }
+  ],
+  "outputs": [
+    { "key": "click", "label": { "en": "Click" }, "allowedActions": ["navigate", "open_object_detail"] }
+  ],
+  "bindings": [
+    { "input": "value", "allowedSources": ["object_variable", "model_output", "data_source_signal", "static"] }
+  ],
+  "style": {
+    "parts": [
+      { "part": "card", "allowed": ["background", "borderColor", "borderRadius", "padding", "shadow", "width", "height", "fontFamily"] },
+      { "part": "title", "allowed": ["color", "fontSize", "fontFamily", "fontWeight"] },
+      { "part": "value", "allowed": ["color", "fontSize", "fontFamily", "fontWeight"] },
+      { "part": "unit", "allowed": ["color", "fontSize", "fontFamily"] },
+      { "part": "footer", "allowed": ["color", "fontSize", "fontFamily"] }
+    ],
+    "tokens": ["color.surface.raised", "color.text.primary", "color.status.warning", "color.status.critical", "space.md", "radius.md"],
+    "defaults": { "padding": { "$token": "space.md" }, "borderRadius": { "$token": "radius.md" } }
+  },
+  "validationRules": [
+    {
+      "id": "thresholds_ordered",
+      "assert": "critBelow <= warnBelow",
+      "message": { "fa": "آستانه بحرانی باید کمتر یا مساوی آستانه هشدار باشد.", "en": "Critical threshold must be <= warning threshold." },
+      "severity": "error"
+    }
+  ],
+  "layoutConstraints": {
+    "minWidth": 160,
+    "minHeight": 96,
+    "resizable": true,
+    "allowedParents": ["column", "grid", "stack", "container"],
+    "allowedDocumentTypes": ["page", "dashboard", "template"]
+  },
+  "permissions": { "use": ["component.use"], "edit": ["component.edit"] },
+  "compatibility": {
+    "minPlatformVersion": "0.1.0",
+    "upgradeFrom": [
+      { "range": "^1.0.0", "rename": { "threshold": "warnBelow" }, "set": { "size": "md" } }
+    ]
+  },
+  "changelog": "1.2.0: added 'size'. 1.1.0: added critical threshold. 1.0.0: initial."
+}

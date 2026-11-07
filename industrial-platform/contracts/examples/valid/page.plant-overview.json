@@ -1,0 +1,95 @@
+{
+  "id": "01929f3a-7000-7000-8000-000000000001",
+  "projectId": "01929f3a-0000-7000-8000-000000000001",
+  "kind": "dashboard",
+  "title": { "fa": "نمای کلی نیروگاه دارخوین", "en": "Darkhoveyn plant overview" },
+  "slug": "plant-overview",
+  "path": "/plant/overview",
+  "templateId": null,
+  "headerPolicy": { "mode": "auto" },
+  "seo": { "title": "Darkhoveyn PV — overview", "noindex": true },
+  "status": "draft",
+  "headRevision": 7,
+  "livePublishedVersionId": null,
+  "document": {
+    "schemaVersion": 1,
+    "documentType": "dashboard",
+    "settings": { "layout": "fluid", "maxWidth": "1440px", "direction": "rtl", "grid": { "columns": 12, "rowHeight": 80 }, "refreshIntervalMs": 10000 },
+    "root": {
+      "id": "root",
+      "type": "root",
+      "children": [
+        {
+          "id": "sec-kpis",
+          "type": "section",
+          "style": { "padding": { "$token": "space.lg" }, "background": { "$token": "color.surface.base" } },
+          "children": [
+            {
+              "id": "hd-title",
+              "type": "heading",
+              "props": { "text": { "fa": "نمای کلی نیروگاه", "en": "Plant overview" }, "level": 1 },
+              "style": { "color": { "$token": "color.text.primary" }, "marginY": "0" }
+            },
+            {
+              "id": "row-kpis",
+              "type": "row",
+              "style": { "gap": { "$token": "space.md" }, "wrap": "wrap" },
+              "children": [
+                {
+                  "id": "col-ac",
+                  "type": "column",
+                  "style": { "columnSpan": 6 },
+                  "children": [
+                    {
+                      "id": "kpi-ac-power",
+                      "type": "component",
+                      "component": {
+                        "definitionId": "01929f3a-1000-7000-8000-000000000001",
+                        "definitionKey": "industrial.kpi-card",
+                        "version": "1.2.0"
+                      },
+                      "props": { "title": { "fa": "توان AC کل", "en": "Total AC power" }, "decimals": 1, "warnBelow": 200, "critBelow": 50 },
+                      "bindings": { "value": { "bindingId": "01929f3a-5000-7000-8000-000000000001", "fallback": null } },
+                      "responsive": { "mobile": { "style": { "columnSpan": 12 } } }
+                    }
+                  ]
+                },
+                {
+                  "id": "col-pr",
+                  "type": "column",
+                  "style": { "columnSpan": 6 },
+                  "children": [
+                    {
+                      "id": "kpi-pr",
+                      "type": "component",
+                      "component": {
+                        "definitionId": "01929f3a-1000-7000-8000-000000000001",
+                        "definitionKey": "industrial.kpi-card",
+                        "version": "1.2.0"
+                      },
+                      "props": { "title": { "fa": "نسبت عملکرد (PR) امروز", "en": "Performance ratio today" }, "decimals": 1, "warnBelow": 75, "critBelow": 60 },
+                      "bindings": { "value": { "bindingId": "01929f3a-5000-7000-8000-000000000002" } },
+                      "metadata": { "label": "PR from model run" }
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "sec-note",
+          "type": "section",
+          "children": [
+            {
+              "id": "txt-note",
+              "type": "text",
+              "props": { "text": { "fa": "مقادیر از SCADA دارخوین خوانده می‌شوند.", "en": "Values are read from the Darkhoveyn SCADA." } },
+              "style": { "color": { "$token": "color.text.muted" }, "fontSize": { "$token": "font.size.sm" } }
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,93 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.industrial-platform.local/schemas/v1/data-binding.schema.json",
+  "title": "Data binding",
+  "description": "First-class, reusable link from a value source to a component input. Documents reference bindings by id; the published version bundle snapshots the binding specs so later edits never change a published page.",
+  "type": "object",
+  "properties": {
+    "id": { "$ref": "common.schema.json#/$defs/uuid" },
+    "projectId": { "$ref": "common.schema.json#/$defs/uuid" },
+    "name": { "type": "string", "minLength": 1, "maxLength": 120 },
+    "source": {
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "kind": { "const": "object_variable" },
+            "objectId": { "$ref": "common.schema.json#/$defs/uuid" },
+            "variable": { "$ref": "common.schema.json#/$defs/key" }
+          },
+          "required": ["kind", "objectId", "variable"],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "kind": { "const": "model_output" },
+            "modelId": { "$ref": "common.schema.json#/$defs/uuid" },
+            "output": { "$ref": "common.schema.json#/$defs/key" },
+            "run": { "enum": ["latest_succeeded"], "description": "Which run's result to show. v1: only the latest succeeded run of the pinned/published model version." }
+          },
+          "required": ["kind", "modelId", "output", "run"],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "kind": { "const": "static" },
+            "value": { "type": ["number", "string", "boolean"] }
+          },
+          "required": ["kind", "value"],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "description": "Direct link to a named query/signal on a project data source (Grafana-like).",
+          "properties": {
+            "kind": { "const": "data_source_signal" },
+            "dataSourceId": { "$ref": "common.schema.json#/$defs/uuid" },
+            "signal": { "type": "string", "minLength": 1, "maxLength": 255, "pattern": "^[A-Za-z0-9_./:-]+$" },
+            "fieldPath": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 512,
+              "description": "Optional JSONPath-style path applied after the query extract (e.g. $.sensors or specifications.power)."
+            }
+          },
+          "required": ["kind", "dataSourceId", "signal"],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "defaultValue": {
+      "description": "Used when the source path is missing or null.",
+      "type": ["number", "string", "boolean", "null"]
+    },
+    "transform": {
+      "type": "object",
+      "properties": {
+        "toUnit": { "$ref": "common.schema.json#/$defs/unit" },
+        "decimals": { "type": "integer", "minimum": 0, "maximum": 6 },
+        "expression": { "$ref": "common.schema.json#/$defs/expression", "description": "Optional scalar transform; the only identifier available is 'value'." },
+        "format": {
+          "enum": ["none", "number", "percent", "date", "datetime", "string"],
+          "description": "Display formatting preset applied after expression/unit."
+        }
+      },
+      "additionalProperties": false
+    },
+    "delivery": {
+      "type": "object",
+      "properties": {
+        "mode": { "enum": ["live", "poll", "on_load"] },
+        "intervalMs": { "type": "integer", "minimum": 1000, "maximum": 3600000 },
+        "staleAfterMs": { "type": "integer", "minimum": 1000, "description": "Renderer marks the value stale after this age." }
+      },
+      "required": ["mode"],
+      "additionalProperties": false
+    },
+    "lockVersion": { "type": "integer", "minimum": 1, "readOnly": true }
+  },
+  "required": ["id", "name", "source", "delivery"],
+  "additionalProperties": false
+}

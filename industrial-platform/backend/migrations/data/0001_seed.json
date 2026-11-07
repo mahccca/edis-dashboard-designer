@@ -1,0 +1,382 @@
+{
+  "permissions": {
+    "project.view": "View project",
+    "project.manage": "Edit/archive project",
+    "project.manage_members": "Manage members and roles",
+    "project.audit": "Read audit log",
+    "page.view": "View pages and drafts",
+    "page.edit": "Edit pages, dashboards and data bindings",
+    "page.publish": "Publish / roll back pages",
+    "template.edit": "Edit templates, headers, footers, menus",
+    "template.publish": "Publish templates and template parts",
+    "theme.edit": "Edit themes",
+    "theme.publish": "Publish themes",
+    "component.use": "Use components from the library",
+    "component.edit": "Create/edit component definitions",
+    "component.publish": "Publish/deprecate component versions",
+    "object.view": "View industrial objects and values",
+    "object.edit": "Create/edit industrial objects",
+    "object_type.edit": "Create/edit object types",
+    "data_source.view": "View data sources",
+    "data_source.manage": "Create/edit data sources and credentials",
+    "model.view": "View models and runs",
+    "model.edit": "Edit models",
+    "model.run": "Run models",
+    "model.publish": "Publish models",
+    "runtime.view": "View published runtime pages"
+  },
+  "rolePermissions": {
+    "owner": [
+      "project.view",
+      "project.manage",
+      "project.manage_members",
+      "project.audit",
+      "page.view",
+      "page.edit",
+      "page.publish",
+      "template.edit",
+      "template.publish",
+      "theme.edit",
+      "theme.publish",
+      "component.use",
+      "component.edit",
+      "component.publish",
+      "object.view",
+      "object.edit",
+      "object_type.edit",
+      "data_source.view",
+      "data_source.manage",
+      "model.view",
+      "model.edit",
+      "model.run",
+      "model.publish",
+      "runtime.view"
+    ],
+    "admin": [
+      "project.view",
+      "project.manage",
+      "project.manage_members",
+      "project.audit",
+      "page.view",
+      "page.edit",
+      "page.publish",
+      "template.edit",
+      "template.publish",
+      "theme.edit",
+      "theme.publish",
+      "component.use",
+      "component.edit",
+      "component.publish",
+      "object.view",
+      "object.edit",
+      "object_type.edit",
+      "data_source.view",
+      "data_source.manage",
+      "model.view",
+      "model.edit",
+      "model.run",
+      "model.publish",
+      "runtime.view"
+    ],
+    "designer": [
+      "project.view",
+      "page.view",
+      "page.edit",
+      "page.publish",
+      "template.edit",
+      "template.publish",
+      "theme.edit",
+      "theme.publish",
+      "component.use",
+      "component.edit",
+      "component.publish",
+      "object.view",
+      "data_source.view",
+      "model.view",
+      "runtime.view"
+    ],
+    "engineer": [
+      "project.view",
+      "page.view",
+      "component.use",
+      "object.view",
+      "object.edit",
+      "object_type.edit",
+      "data_source.view",
+      "data_source.manage",
+      "model.view",
+      "model.edit",
+      "model.run",
+      "model.publish",
+      "runtime.view"
+    ],
+    "operator": [
+      "project.view",
+      "runtime.view",
+      "object.view",
+      "model.view",
+      "model.run"
+    ],
+    "viewer": [
+      "project.view",
+      "page.view",
+      "runtime.view",
+      "object.view"
+    ]
+  },
+  "components": [
+    {
+      "definitionId": "01929f3a-1000-7000-8000-000000000001",
+      "versionId": "01929f3a-1001-7000-8000-000000000001",
+      "spec": {
+        "id": "01929f3a-1000-7000-8000-000000000001",
+        "key": "industrial.kpi-card",
+        "schemaVersion": 1,
+        "version": "1.2.0",
+        "category": "kpi",
+        "name": {
+          "fa": "کارت شاخص (KPI)",
+          "en": "KPI card"
+        },
+        "description": {
+          "en": "Single numeric value with unit, freshness indicator and warning/critical thresholds."
+        },
+        "status": "published",
+        "rendererId": "builtin.kpi-card@1",
+        "properties": [
+          {
+            "key": "title",
+            "label": {
+              "fa": "عنوان",
+              "en": "Title"
+            },
+            "type": "string",
+            "required": true,
+            "maxLength": 80,
+            "group": "content"
+          },
+          {
+            "key": "decimals",
+            "label": {
+              "fa": "تعداد اعشار",
+              "en": "Decimals"
+            },
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 4,
+            "group": "format"
+          },
+          {
+            "key": "showUnit",
+            "label": {
+              "en": "Show unit"
+            },
+            "type": "boolean",
+            "group": "format"
+          },
+          {
+            "key": "warnBelow",
+            "label": {
+              "en": "Warning below"
+            },
+            "type": "number",
+            "group": "thresholds"
+          },
+          {
+            "key": "critBelow",
+            "label": {
+              "en": "Critical below"
+            },
+            "type": "number",
+            "group": "thresholds"
+          },
+          {
+            "key": "accent",
+            "label": {
+              "en": "Accent color"
+            },
+            "type": "token",
+            "group": "style"
+          },
+          {
+            "key": "size",
+            "label": {
+              "en": "Size"
+            },
+            "type": "enum",
+            "enum": [
+              "sm",
+              "md",
+              "lg"
+            ],
+            "group": "style"
+          }
+        ],
+        "defaults": {
+          "title": "KPI",
+          "decimals": 1,
+          "showUnit": true,
+          "accent": "color.accent.primary",
+          "size": "md"
+        },
+        "inputs": [
+          {
+            "key": "value",
+            "label": {
+              "en": "Value"
+            },
+            "dataType": "number",
+            "required": true
+          },
+          {
+            "key": "timestamp",
+            "label": {
+              "en": "Value time"
+            },
+            "dataType": "timestamp"
+          }
+        ],
+        "outputs": [
+          {
+            "key": "click",
+            "label": {
+              "en": "Click"
+            },
+            "allowedActions": [
+              "navigate",
+              "open_object_detail"
+            ]
+          }
+        ],
+        "bindings": [
+          {
+            "input": "value",
+            "allowedSources": [
+              "object_variable",
+              "model_output",
+              "data_source_signal",
+              "static"
+            ]
+          }
+        ],
+        "style": {
+          "parts": [
+            {
+              "part": "card",
+              "allowed": [
+                "background",
+                "borderColor",
+                "borderRadius",
+                "padding",
+                "shadow",
+                "width",
+                "height",
+                "fontFamily"
+              ]
+            },
+            {
+              "part": "title",
+              "allowed": [
+                "color",
+                "fontSize",
+                "fontFamily",
+                "fontWeight"
+              ]
+            },
+            {
+              "part": "value",
+              "allowed": [
+                "color",
+                "fontSize",
+                "fontFamily",
+                "fontWeight"
+              ]
+            },
+            {
+              "part": "unit",
+              "allowed": [
+                "color",
+                "fontSize",
+                "fontFamily"
+              ]
+            },
+            {
+              "part": "footer",
+              "allowed": [
+                "color",
+                "fontSize",
+                "fontFamily"
+              ]
+            }
+          ],
+          "tokens": [
+            "color.surface.raised",
+            "color.text.primary",
+            "color.status.warning",
+            "color.status.critical",
+            "space.md",
+            "radius.md"
+          ],
+          "defaults": {
+            "padding": {
+              "$token": "space.md"
+            },
+            "borderRadius": {
+              "$token": "radius.md"
+            }
+          }
+        },
+        "validationRules": [
+          {
+            "id": "thresholds_ordered",
+            "assert": "critBelow <= warnBelow",
+            "message": {
+              "fa": "آستانه بحرانی باید کمتر یا مساوی آستانه هشدار باشد.",
+              "en": "Critical threshold must be <= warning threshold."
+            },
+            "severity": "error"
+          }
+        ],
+        "layoutConstraints": {
+          "minWidth": 160,
+          "minHeight": 96,
+          "resizable": true,
+          "allowedParents": [
+            "column",
+            "grid",
+            "stack",
+            "container"
+          ],
+          "allowedDocumentTypes": [
+            "page",
+            "dashboard",
+            "template"
+          ]
+        },
+        "permissions": {
+          "use": [
+            "component.use"
+          ],
+          "edit": [
+            "component.edit"
+          ]
+        },
+        "compatibility": {
+          "minPlatformVersion": "0.1.0",
+          "upgradeFrom": [
+            {
+              "range": "^1.0.0",
+              "rename": {
+                "threshold": "warnBelow"
+              },
+              "set": {
+                "size": "md"
+              }
+            }
+          ]
+        },
+        "changelog": "1.2.0: added 'size'. 1.1.0: added critical threshold. 1.0.0: initial."
+      }
+    }
+  ]
+}

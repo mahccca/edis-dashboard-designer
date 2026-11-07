@@ -1,0 +1,11 @@
+{
+  "id": "01929f3a-6000-7000-8000-0000000000f2",
+  "key": "test.unknown-function",
+  "schemaVersion": 1,
+  "version": "1.0.0",
+  "status": "draft",
+  "name": "Passes the character whitelist but calls a non-whitelisted function",
+  "inputs": [{ "key": "x", "name": "x", "unit": "" }],
+  "outputs": [{ "key": "y", "name": "y", "unit": "", "formula": { "expression": "system(x) + getattr(x, x)" } }],
+  "execution": { "timeoutMs": 1000, "triggers": [{ "kind": "manual" }] }
+}

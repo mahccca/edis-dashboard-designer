@@ -1,0 +1,63 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.industrial-platform.local/schemas/v1/page.schema.json",
+  "title": "Page",
+  "description": "Page resource as exchanged over the API / export. Relational fields map 1:1 to columns of documents + pages; `document` is the head revision content. Read-only fields are ignored on write.",
+  "type": "object",
+  "properties": {
+    "id": { "$ref": "common.schema.json#/$defs/uuid", "readOnly": true },
+    "projectId": { "$ref": "common.schema.json#/$defs/uuid", "readOnly": true },
+    "kind": { "enum": ["page", "dashboard"], "default": "page" },
+    "title": { "$ref": "common.schema.json#/$defs/localizedText" },
+    "slug": { "$ref": "common.schema.json#/$defs/slug" },
+    "path": {
+      "description": "Runtime URL path inside the project site. Unique per project.",
+      "type": "string",
+      "pattern": "^/([a-z0-9]+(-[a-z0-9]+)*(/[a-z0-9]+(-[a-z0-9]+)*)*)?$",
+      "maxLength": 255
+    },
+    "templateId": { "oneOf": [{ "$ref": "common.schema.json#/$defs/uuid" }, { "type": "null" }] },
+    "headerPolicy": {
+      "description": "auto = resolve header by display conditions; none = no header; explicit = use headerPartId.",
+      "type": "object",
+      "properties": {
+        "mode": { "enum": ["auto", "none", "explicit"] },
+        "headerPartId": { "$ref": "common.schema.json#/$defs/uuid" }
+      },
+      "required": ["mode"],
+      "additionalProperties": false,
+      "if": { "properties": { "mode": { "const": "explicit" } } },
+      "then": { "required": ["headerPartId"] }
+    },
+    "seo": {
+      "type": "object",
+      "properties": {
+        "title": { "$ref": "common.schema.json#/$defs/localizedText" },
+        "description": { "$ref": "common.schema.json#/$defs/localizedText" },
+        "noindex": { "type": "boolean" }
+      },
+      "additionalProperties": false
+    },
+    "status": { "$ref": "common.schema.json#/$defs/publishStatus", "readOnly": true },
+    "headRevision": { "type": "integer", "minimum": 1, "readOnly": true, "description": "Also returned as ETag \"rev-<n>\"." },
+    "livePublishedVersionId": { "oneOf": [{ "$ref": "common.schema.json#/$defs/uuid" }, { "type": "null" }], "readOnly": true },
+    "document": {
+      "allOf": [
+        { "$ref": "document.schema.json" },
+        { "properties": { "documentType": { "enum": ["page", "dashboard"] } } }
+      ]
+    },
+    "createdAt": { "$ref": "common.schema.json#/$defs/timestamp", "readOnly": true },
+    "updatedAt": { "$ref": "common.schema.json#/$defs/timestamp", "readOnly": true }
+  },
+  "required": ["title", "slug", "path", "document"],
+  "additionalProperties": false,
+  "allOf": [
+    {
+      "description": "kind and documentType must agree (a dashboard is a page whose document uses the dashboard grid layout engine).",
+      "if": { "properties": { "kind": { "const": "dashboard" } }, "required": ["kind"] },
+      "then": { "properties": { "document": { "properties": { "documentType": { "const": "dashboard" } } } } },
+      "else": { "properties": { "document": { "properties": { "documentType": { "const": "page" } } } } }
+    }
+  ]
+}

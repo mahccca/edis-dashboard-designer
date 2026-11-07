@@ -1,0 +1,45 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.industrial-platform.local/schemas/v1/document.schema.json",
+  "title": "Design document content",
+  "description": "The JSON stored in document_revisions.content (JSONB) for every design-core document. Relational metadata (title, slug, status, owner, versions) is NOT duplicated here; it lives in table columns and in the resource envelopes (page.schema.json, template-part.schema.json).",
+  "type": "object",
+  "properties": {
+    "schemaVersion": {
+      "description": "Document contract version. v1 is the only registered version; the server migrates older versions forward on read (see ADR-0005).",
+      "const": 1
+    },
+    "documentType": { "enum": ["page", "template", "template_part", "dashboard"] },
+    "settings": {
+      "type": "object",
+      "properties": {
+        "layout": { "enum": ["fixed", "fluid"] },
+        "maxWidth": { "$ref": "common.schema.json#/$defs/cssLength" },
+        "direction": { "enum": ["rtl", "ltr", "auto"] },
+        "grid": {
+          "description": "Dashboard documents only: grid used by the dashboard layout engine.",
+          "type": "object",
+          "properties": {
+            "columns": { "type": "integer", "minimum": 1, "maximum": 48 },
+            "rowHeight": { "type": "integer", "minimum": 8, "maximum": 400 }
+          },
+          "additionalProperties": false
+        },
+        "refreshIntervalMs": { "type": "integer", "minimum": 1000, "maximum": 3600000 },
+        "colorScheme": {
+          "description": "Preferred appearance for this document. `night` uses partStyles; `day` uses partStylesDay.",
+          "enum": ["night", "day"]
+        }
+      },
+      "additionalProperties": false
+    },
+    "root": {
+      "allOf": [
+        { "$ref": "node.schema.json#/$defs/node" },
+        { "properties": { "type": { "const": "root" } } }
+      ]
+    }
+  },
+  "required": ["schemaVersion", "documentType", "root"],
+  "additionalProperties": false
+}

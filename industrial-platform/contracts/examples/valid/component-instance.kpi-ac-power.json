@@ -1,0 +1,14 @@
+{
+  "id": "kpi-ac-power",
+  "type": "component",
+  "component": {
+    "definitionId": "01929f3a-1000-7000-8000-000000000001",
+    "definitionKey": "industrial.kpi-card",
+    "version": "1.2.0"
+  },
+  "props": { "title": { "fa": "توان AC کل", "en": "Total AC power" }, "decimals": 1, "warnBelow": 200, "critBelow": 50 },
+  "style": { "borderColor": { "$token": "color.border.subtle" } },
+  "bindings": { "value": { "bindingId": "01929f3a-5000-7000-8000-000000000001" } },
+  "responsive": { "mobile": { "style": { "columnSpan": 12 } }, "tablet": { "props": { "size": "sm" } } },
+  "metadata": { "label": "Plant AC power" }
+}

@@ -1,0 +1,20 @@
+{
+  "title": "XSS attempt through style",
+  "slug": "xss-style",
+  "path": "/xss",
+  "document": {
+    "schemaVersion": 1,
+    "documentType": "page",
+    "root": {
+      "id": "root",
+      "type": "root",
+      "children": [
+        {
+          "id": "sec-a",
+          "type": "section",
+          "style": { "background": "url(javascript:alert(1))" }
+        }
+      ]
+    }
+  }
+}

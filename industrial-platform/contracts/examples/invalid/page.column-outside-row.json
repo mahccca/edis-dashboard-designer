@@ -1,0 +1,22 @@
+{
+  "title": "Broken layout",
+  "slug": "broken-layout",
+  "path": "/broken",
+  "document": {
+    "schemaVersion": 1,
+    "documentType": "page",
+    "root": {
+      "id": "root",
+      "type": "root",
+      "children": [
+        {
+          "id": "sec-a",
+          "type": "section",
+          "children": [
+            { "id": "col-orphan", "type": "column", "children": [] }
+          ]
+        }
+      ]
+    }
+  }
+}

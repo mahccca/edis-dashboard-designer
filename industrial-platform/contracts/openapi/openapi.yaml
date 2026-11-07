@@ -1,0 +1,2709 @@
+openapi: 3.1.0
+jsonSchemaDialect: https://json-schema.org/draft/2020-12/schema
+info:
+  title: Industrial Visual Platform API
+  version: 0.1.0
+  summary: Design-time, modeling and runtime API of the modular monolith (v1).
+  description: |
+    Conventions (normative for every endpoint; see docs/api/api-conventions.md):
+
+    * **Versioning** — URI major version (`/api/v1`). Additive changes only within v1.
+      Document *content* has its own `schemaVersion` (see contracts/schemas).
+    * **Auth** — browser clients use the HttpOnly `ipsid` session cookie plus the
+      `X-CSRF-Token` header on unsafe methods; machine clients use `Authorization: Bearer <token>`.
+      Every operation lists the required permission in `x-permission`; checks are always
+      server-side and scoped to the project that owns the resource.
+    * **Errors** — RFC 9457 `application/problem+json` (`Problem`); validation errors carry
+      JSON-pointer `errors[]`.
+    * **Optimistic concurrency** — mutable resources return `ETag`. Updates require `If-Match`
+      (missing → 428, stale → 412 with the current ETag). Documents use `"rev-<n>"` ETags.
+    * **Pagination** — cursor based: `limit` (1..200, default 50) + opaque `cursor`; responses
+      are `{ items, nextCursor }`. Filtering via explicit query params; sorting via `sort=field|-field`.
+    * **Idempotency** — `POST` that starts work (model runs, publish) accepts `Idempotency-Key`.
+    * **Live data** — `GET /runtime/ws` upgrades to WebSocket (not describable in OpenAPI;
+      message contract in docs/api/api-conventions.md, AsyncAPI later).
+  license:
+    name: Proprietary
+servers:
+  - url: /api/v1
+security:
+  - sessionCookie: []
+  - bearerAuth: []
+tags:
+  - name: auth
+  - name: projects
+  - name: pages
+  - name: templates
+  - name: template-parts
+  - name: themes
+  - name: menus
+  - name: components
+  - name: object-types
+  - name: objects
+  - name: data-sources
+  - name: data-bindings
+  - name: models
+  - name: model-runs
+  - name: preview
+  - name: runtime
+  - name: audit
+
+paths:
+  # ---------------------------------------------------------------- auth
+  /health:
+    get:
+      tags: [auth]
+      operationId: health
+      security: []
+      x-permission: public
+      description: Liveness probe. Reveals no configuration or version details.
+      responses:
+        '200':
+          description: Process is up.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [status]
+                properties:
+                  status: { type: string, const: ok }
+  /auth/login:
+    post:
+      tags: [auth]
+      operationId: login
+      security: []
+      x-permission: public
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/LoginRequest' }
+      responses:
+        '200':
+          description: Session created. Sets `ipsid` (HttpOnly, Secure, SameSite=Lax) and returns the CSRF token.
+          headers:
+            Set-Cookie: { schema: { type: string } }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Session' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '422': { $ref: '#/components/responses/Unprocessable' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+  /auth/logout:
+    post:
+      tags: [auth]
+      operationId: logout
+      x-permission: authenticated
+      responses:
+        '204': { description: Session revoked. }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+  /auth/me:
+    get:
+      tags: [auth]
+      operationId: getMe
+      x-permission: authenticated
+      responses:
+        '200':
+          description: Current user with per-project permissions.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Me' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+
+  # ------------------------------------------------------------ projects
+  /projects:
+    get:
+      tags: [projects]
+      operationId: listProjects
+      x-permission: authenticated (only projects the user is a member of)
+      parameters:
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Q'
+      responses:
+        '200':
+          description: Projects.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ProjectList' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+    post:
+      tags: [projects]
+      operationId: createProject
+      x-permission: platform.create_project
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ProjectCreate' }
+      responses:
+        '201':
+          description: Created; caller becomes project owner.
+          headers:
+            Location: { $ref: '#/components/headers/Location' }
+            ETag: { $ref: '#/components/headers/ETag' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Project' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '422': { $ref: '#/components/responses/Unprocessable' }
+  /projects/{projectId}:
+    parameters:
+      - $ref: '#/components/parameters/ProjectId'
+    get:
+      tags: [projects]
+      operationId: getProject
+      x-permission: project.view
+      responses:
+        '200':
+          description: Project.
+          headers:
+            ETag: { $ref: '#/components/headers/ETag' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Project' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    patch:
+      tags: [projects]
+      operationId: updateProject
+      x-permission: project.manage
+      parameters:
+        - $ref: '#/components/parameters/IfMatch'
+      requestBody:
+        required: true
+        content:
+          application/merge-patch+json:
+            schema: { $ref: '#/components/schemas/ProjectPatch' }
+      responses:
+        '200':
+          description: Updated.
+          headers:
+            ETag: { $ref: '#/components/headers/ETag' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Project' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '412': { $ref: '#/components/responses/PreconditionFailed' }
+        '422': { $ref: '#/components/responses/Unprocessable' }
+        '428': { $ref: '#/components/responses/PreconditionRequired' }
+    delete:
+      tags: [projects]
+      operationId: archiveProject
+      description: Soft delete (status = archived). Published runtime sites go offline.
+      x-permission: project.manage
+      parameters:
+        - $ref: '#/components/parameters/IfMatch'
+      responses:
+        '204': { description: Archived. }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '412': { $ref: '#/components/responses/PreconditionFailed' }
+  /projects/{projectId}/members:
+    parameters:
+      - $ref: '#/components/parameters/ProjectId'
+    get:
+      tags: [projects]
+      operationId: listMembers
+      x-permission: project.view
+      responses:
+        '200':
+          description: Members.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items: { type: array, items: { $ref: '#/components/schemas/Member' } }
+                required: [items]
+        '403': { $ref: '#/components/responses/Forbidden' }
+  /projects/{projectId}/members/{userId}:
+    parameters:
+      - $ref: '#/components/parameters/ProjectId'
+      - { name: userId, in: path, required: true, schema: { $ref: '#/components/schemas/Uuid' } }
+    put:
+      tags: [projects]
+      operationId: setMemberRole
+      x-permission: project.manage_members
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties: { role: { $ref: '#/components/schemas/RoleKey' } }
+              required: [role]
+      responses:
+        '200':
+          description: Membership upserted.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Member' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+    delete:
+      tags: [projects]
+      operationId: removeMember
+      x-permission: project.manage_members
+      responses:
+        '204': { description: Removed (last owner cannot be removed → 409). }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '409': { $ref: '#/components/responses/Conflict' }
+
+  # --------------------------------------------------------------- pages
+  /projects/{projectId}/pages:
+    parameters:
+      - $ref: '#/components/parameters/ProjectId'
+    get:
+      tags: [pages]
+      operationId: listPages
+      x-permission: page.view
+      parameters:
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Q'
+        - $ref: '#/components/parameters/Sort'
+        - { name: status, in: query, schema: { $ref: '#/components/schemas/PublishStatus' } }
+        - { name: kind, in: query, schema: { enum: [page, dashboard] } }
+      responses:
+        '200':
+          description: Page summaries (no document content).
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PageSummaryList' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+    post:
+      tags: [pages]
+      operationId: createPage
+      x-permission: page.edit
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/PageCreate' }
+      responses:
+        '201':
+          description: Created with revision 1 (empty root document unless `document` given).
+          headers:
+            Location: { $ref: '#/components/headers/Location' }
+            ETag: { $ref: '#/components/headers/ETag' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Page' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '422': { $ref: '#/components/responses/Unprocessable' }
+  /pages/{pageId}:
+    parameters:
+      - $ref: '#/components/parameters/PageId'
+    get:
+      tags: [pages]
+      operationId: getPage
+      x-permission: page.view
+      responses:
+        '200':
+          description: Page metadata + head document.
+          headers:
+            ETag: { $ref: '#/components/headers/ETag' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Page' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    patch:
+      tags: [pages]
+      operationId: updatePageMeta
+      description: Metadata only (title, slug, path, templateId, headerPolicy, seo). Content changes go through PUT /document.
+      x-permission: page.edit
+      parameters:
+        - $ref: '#/components/parameters/IfMatch'
+      requestBody:
+        required: true
+        content:
+          application/merge-patch+json:
+            schema: { $ref: '#/components/schemas/PageMetaPatch' }
+      responses:
+        '200':
+          description: Updated.
+          headers:
+            ETag: { $ref: '#/components/headers/ETag' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PageSummary' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '412': { $ref: '#/components/responses/PreconditionFailed' }
+        '422': { $ref: '#/components/responses/Unprocessable' }
+        '428': { $ref: '#/components/responses/PreconditionRequired' }
+    delete:
+      tags: [pages]
+      operationId: archivePage
+      description: >-
+        Deletes the page from the project by archiving it. Revisions and published versions are kept as immutable
+        history; the live pointer is removed so the runtime stops serving it, every /pages/{pageId} route answers 404
+        afterwards, and its slug and path can be reused by a new page. Deleting a live page also requires page.publish.
+      x-permission: page.edit
+      parameters:
+        - $ref: '#/components/parameters/IfMatch'
+      responses:
+        '204': { description: 'Archived (published versions are retained; live pointer removed).' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '412': { $ref: '#/components/responses/PreconditionFailed' }
+        '428': { $ref: '#/components/responses/PreconditionRequired' }
+  /pages/{pageId}/document:
+    parameters:
+      - $ref: '#/components/parameters/PageId'
+    get:
+      tags: [pages]
+      operationId: getPageDocument
+      x-permission: page.view
+      responses:
+        '200':
+          description: Head revision content, migrated to the current schemaVersion if stored older.
+          headers:
+            ETag: { $ref: '#/components/headers/ETag' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DocumentRevision' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    put:
+      tags: [pages]
+      operationId: savePageDocument
+      description: |
+        Replaces the document content and appends an immutable revision (`revisionNo = head + 1`).
+        Server pipeline: schema validation → semantic validation (unique ids, component
+        definition+version exist and are usable, props valid, bindings exist in project) →
+        insert revision → rebuild component_usages index → audit log. All in one transaction.
+      x-permission: page.edit
+      parameters:
+        - $ref: '#/components/parameters/IfMatch'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/DocumentSave' }
+      responses:
+        '200':
+          description: Saved.
+          headers:
+            ETag: { $ref: '#/components/headers/ETag' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/RevisionSummary' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '412': { $ref: '#/components/responses/PreconditionFailed' }
+        '413': { $ref: '#/components/responses/PayloadTooLarge' }
+        '422': { $ref: '#/components/responses/Unprocessable' }
+        '428': { $ref: '#/components/responses/PreconditionRequired' }
+  /pages/{pageId}/revisions:
+    parameters:
+      - $ref: '#/components/parameters/PageId'
+    get:
+      tags: [pages]
+      operationId: listPageRevisions
+      x-permission: page.view
+      parameters:
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Cursor'
+      responses:
+        '200':
+          description: Revisions, newest first (no content).
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/RevisionList' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /pages/{pageId}/revisions/{revisionNo}:
+    parameters:
+      - $ref: '#/components/parameters/PageId'
+      - $ref: '#/components/parameters/RevisionNo'
+    get:
+      tags: [pages]
+      operationId: getPageRevision
+      x-permission: page.view
+      responses:
+        '200':
+          description: Revision content.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DocumentRevision' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /pages/{pageId}/revisions/{revisionNo}/restore:
+    parameters:
+      - $ref: '#/components/parameters/PageId'
+      - $ref: '#/components/parameters/RevisionNo'
+    post:
+      tags: [pages]
+      operationId: restorePageRevision
+      description: Rollback of the draft. Copies the old content into a NEW head revision (history is never rewritten). Re-validated against current component versions; incompatibilities → 422.
+      x-permission: page.edit
+      parameters:
+        - $ref: '#/components/parameters/IfMatch'
+      responses:
+        '201':
+          description: New head revision.
+          headers:
+            ETag: { $ref: '#/components/headers/ETag' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/RevisionSummary' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '412': { $ref: '#/components/responses/PreconditionFailed' }
+        '422': { $ref: '#/components/responses/Unprocessable' }
+        '428': { $ref: '#/components/responses/PreconditionRequired' }
+  /pages/{pageId}/publish:
+    parameters:
+      - $ref: '#/components/parameters/PageId'
+    post:
+      tags: [pages]
+      operationId: publishPage
+      description: |
+        Builds an immutable PublishedVersion from `revisionNo`: resolves and pins every component
+        definition version (must be `published`), the active theme version, applicable template
+        parts' published versions and snapshots the referenced data-binding specs. Sets it live.
+      x-permission: page.publish
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/PublishRequest' }
+      responses:
+        '201':
+          description: Published and live.
+          headers:
+            Location: { $ref: '#/components/headers/Location' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PublishedVersion' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '422': { $ref: '#/components/responses/Unprocessable' }
+  /pages/{pageId}/published-versions:
+    parameters:
+      - $ref: '#/components/parameters/PageId'
+    get:
+      tags: [pages]
+      operationId: listPagePublishedVersions
+      x-permission: page.view
+      parameters:
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Cursor'
+      responses:
+        '200':
+          description: Published versions, newest first; `isLive` marks the live one.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PublishedVersionList' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /pages/{pageId}/published-versions/{versionNo}/activate:
+    parameters:
+      - $ref: '#/components/parameters/PageId'
+      - { name: versionNo, in: path, required: true, schema: { type: integer, minimum: 1 } }
+    post:
+      tags: [pages]
+      operationId: activatePagePublishedVersion
+      description: Runtime rollback. Moves the live pointer to an older immutable published version. No content is rebuilt.
+      x-permission: page.publish
+      responses:
+        '200':
+          description: Live pointer moved.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PublishedVersion' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+
+  # ----------------------------------------------------------- templates
+  /projects/{projectId}/templates:
+    parameters:
+      - $ref: '#/components/parameters/ProjectId'
+    get:
+      tags: [templates]
+      operationId: listTemplates
+      x-permission: page.view
+      parameters:
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Cursor'
+      responses:
+        '200':
+          description: Page templates (documents of type `template`, containing exactly one `slot`).
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DocumentSummaryList' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+    post:
+      tags: [templates]
+      operationId: createTemplate
+      x-permission: template.edit
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/NamedDocumentCreate' }
+      responses:
+        '201':
+          description: Created.
+          headers:
+            Location: { $ref: '#/components/headers/Location' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DocumentSummary' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '422': { $ref: '#/components/responses/Unprocessable' }
+  /templates/{templateId}/document:
+    parameters:
+      - { name: templateId, in: path, required: true, schema: { $ref: '#/components/schemas/Uuid' } }
+    get:
+      tags: [templates]
+      operationId: getTemplateDocument
+      x-permission: page.view
+      responses:
+        '200':
+          description: Head revision.
+          headers:
+            ETag: { $ref: '#/components/headers/ETag' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DocumentRevision' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    put:
+      tags: [templates]
+      operationId: saveTemplateDocument
+      x-permission: template.edit
+      parameters:
+        - $ref: '#/components/parameters/IfMatch'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/DocumentSave' }
+      responses:
+        '200':
+          description: Saved.
+          headers:
+            ETag: { $ref: '#/components/headers/ETag' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/RevisionSummary' }
+        '412': { $ref: '#/components/responses/PreconditionFailed' }
+        '422': { $ref: '#/components/responses/Unprocessable' }
+        '428': { $ref: '#/components/responses/PreconditionRequired' }
+  /templates/{templateId}/publish:
+    parameters:
+      - { name: templateId, in: path, required: true, schema: { $ref: '#/components/schemas/Uuid' } }
+    post:
+      tags: [templates]
+      operationId: publishTemplate
+      description: Publishing a template does NOT change already-published pages (they are pinned); pages pick it up on their next publish.
+      x-permission: template.publish
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/PublishRequest' }
+      responses:
+        '201':
+          description: Published.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PublishedVersion' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '422': { $ref: '#/components/responses/Unprocessable' }
+
+  # ------------------------------------------------------ template parts
+  /projects/{projectId}/template-parts:
+    parameters:
+      - $ref: '#/components/parameters/ProjectId'
+    get:
+      tags: [template-parts]
+      operationId: listTemplateParts
+      x-permission: page.view
+      parameters:
+        - { name: partType, in: query, schema: { enum: [header, footer] } }
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Cursor'
+      responses:
+        '200':
+          description: Headers/footers.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DocumentSummaryList' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+    post:
+      tags: [template-parts]
+      operationId: createTemplatePart
+      x-permission: template.edit
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '../schemas/template-part.schema.json' }
+      responses:
+        '201':
+          description: Created.
+          headers:
+            Location: { $ref: '#/components/headers/Location' }
+          content:
+            application/json:
+              schema: { $ref: '../schemas/template-part.schema.json' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '422': { $ref: '#/components/responses/Unprocessable' }
+  /template-parts/{partId}:
+    parameters:
+      - $ref: '#/components/parameters/PartId'
+    get:
+      tags: [template-parts]
+      operationId: getTemplatePart
+      x-permission: page.view
+      responses:
+        '200':
+          description: Template part with head document and draft display conditions.
+          headers:
+            ETag: { $ref: '#/components/headers/ETag' }
+          content:
+            application/json:
+              schema: { $ref: '../schemas/template-part.schema.json' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /template-parts/{partId}/document:
+    parameters:
+      - $ref: '#/components/parameters/PartId'
+    put:
+      tags: [template-parts]
+      operationId: saveTemplatePartDocument
+      x-permission: template.edit
+      parameters:
+        - $ref: '#/components/parameters/IfMatch'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/DocumentSave' }
+      responses:
+        '200':
+          description: Saved.
+          headers:
+            ETag: { $ref: '#/components/headers/ETag' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/RevisionSummary' }
+        '412': { $ref: '#/components/responses/PreconditionFailed' }
+        '422': { $ref: '#/components/responses/Unprocessable' }
+        '428': { $ref: '#/components/responses/PreconditionRequired' }
+  /template-parts/{partId}/display-conditions:
+    parameters:
+      - $ref: '#/components/parameters/PartId'
+    put:
+      tags: [template-parts]
+      operationId: setTemplatePartDisplayConditions
+      description: Replaces the DRAFT condition set; it becomes effective on the next publish of the part.
+      x-permission: template.edit
+      parameters:
+        - $ref: '#/components/parameters/IfMatch'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                priority: { type: integer, minimum: 0, maximum: 1000 }
+                conditions:
+                  type: array
+                  items: { $ref: '../schemas/template-part.schema.json#/$defs/displayCondition' }
+              required: [conditions]
+      responses:
+        '200': { description: Saved. }
+        '412': { $ref: '#/components/responses/PreconditionFailed' }
+        '422': { $ref: '#/components/responses/Unprocessable' }
+        '428': { $ref: '#/components/responses/PreconditionRequired' }
+  /template-parts/{partId}/revisions:
+    parameters:
+      - $ref: '#/components/parameters/PartId'
+    get:
+      tags: [template-parts]
+      operationId: listTemplatePartRevisions
+      x-permission: page.view
+      responses:
+        '200':
+          description: Revisions.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/RevisionList' }
+  /template-parts/{partId}/publish:
+    parameters:
+      - $ref: '#/components/parameters/PartId'
+    post:
+      tags: [template-parts]
+      operationId: publishTemplatePart
+      description: Publishes document + display conditions. Already published pages keep the header version they were published with unless `propagate=true` re-publishes affected pages (later phase).
+      x-permission: template.publish
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/PublishRequest' }
+      responses:
+        '201':
+          description: Published.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PublishedVersion' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '422': { $ref: '#/components/responses/Unprocessable' }
+
+  # -------------------------------------------------------------- themes
+  /projects/{projectId}/themes:
+    parameters:
+      - $ref: '#/components/parameters/ProjectId'
+    get:
+      tags: [themes]
+      operationId: listThemes
+      x-permission: project.view
+      responses:
+        '200':
+          description: Themes.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items: { type: array, items: { $ref: '#/components/schemas/ThemeSummary' } }
+                required: [items]
+    post:
+      tags: [themes]
+      operationId: createTheme
+      x-permission: theme.edit
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '../schemas/theme.schema.json' }
+      responses:
+        '201':
+          description: Created as draft version 1.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ThemeSummary' }
+        '422': { $ref: '#/components/responses/Unprocessable' }
+  /themes/{themeId}/tokens:
+    parameters:
+      - $ref: '#/components/parameters/ThemeId'
+    get:
+      tags: [themes]
+      operationId: getThemeDraft
+      x-permission: project.view
+      responses:
+        '200':
+          description: Draft theme version.
+          headers:
+            ETag: { $ref: '#/components/headers/ETag' }
+          content:
+            application/json:
+              schema: { $ref: '../schemas/theme.schema.json' }
+    put:
+      tags: [themes]
+      operationId: saveThemeDraft
+      x-permission: theme.edit
+      parameters:
+        - $ref: '#/components/parameters/IfMatch'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '../schemas/theme.schema.json' }
+      responses:
+        '200':
+          description: Saved.
+          headers:
+            ETag: { $ref: '#/components/headers/ETag' }
+        '412': { $ref: '#/components/responses/PreconditionFailed' }
+        '422': { $ref: '#/components/responses/Unprocessable' }
+        '428': { $ref: '#/components/responses/PreconditionRequired' }
+  /themes/{themeId}/publish:
+    parameters:
+      - $ref: '#/components/parameters/ThemeId'
+    post:
+      tags: [themes]
+      operationId: publishTheme
+      description: Freezes the draft into an immutable theme version. The project's `activeThemeId` decides which theme new page publishes pin.
+      x-permission: theme.publish
+      responses:
+        '201':
+          description: Published.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ThemeSummary' }
+        '422': { $ref: '#/components/responses/Unprocessable' }
+
+  # --------------------------------------------------------------- menus
+  /projects/{projectId}/menus:
+    parameters:
+      - $ref: '#/components/parameters/ProjectId'
+    get:
+      tags: [menus]
+      operationId: listMenus
+      x-permission: page.view
+      responses:
+        '200':
+          description: Menus.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items: { type: array, items: { $ref: '#/components/schemas/Menu' } }
+                required: [items]
+    post:
+      tags: [menus]
+      operationId: createMenu
+      x-permission: template.edit
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/Menu' }
+      responses:
+        '201':
+          description: Created.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Menu' }
+        '422': { $ref: '#/components/responses/Unprocessable' }
+  /menus/{menuId}:
+    parameters:
+      - { name: menuId, in: path, required: true, schema: { $ref: '#/components/schemas/Uuid' } }
+    put:
+      tags: [menus]
+      operationId: replaceMenu
+      description: Replaces the whole item tree. Items linking to pages use pageId (FK); deleted pages surface as `broken` links.
+      x-permission: template.edit
+      parameters:
+        - $ref: '#/components/parameters/IfMatch'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/Menu' }
+      responses:
+        '200':
+          description: Saved.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Menu' }
+        '412': { $ref: '#/components/responses/PreconditionFailed' }
+        '422': { $ref: '#/components/responses/Unprocessable' }
+
+  # ---------------------------------------------------------- components
+  /renderers:
+    get:
+      tags: [components]
+      operationId: listRenderers
+      description: Whitelisted built-in renderers (frontend element registry) a component definition may target.
+      x-permission: authenticated
+      responses:
+        '200':
+          description: Renderers.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items: { type: array, items: { $ref: '#/components/schemas/Renderer' } }
+                required: [items]
+  /projects/{projectId}/components:
+    parameters:
+      - $ref: '#/components/parameters/ProjectId'
+    get:
+      tags: [components]
+      operationId: listComponents
+      x-permission: component.use
+      parameters:
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Q'
+        - { name: category, in: query, schema: { type: string } }
+        - { name: status, in: query, schema: { $ref: '#/components/schemas/PublishStatus' } }
+        - { name: includeGlobal, in: query, schema: { type: boolean, default: true }, description: Include the platform's built-in library. }
+      responses:
+        '200':
+          description: Component library.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ComponentSummaryList' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+    post:
+      tags: [components]
+      operationId: createComponent
+      description: Creates the definition and its first draft version (0.1.0 or the given version).
+      x-permission: component.edit
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '../schemas/component-definition.schema.json' }
+      responses:
+        '201':
+          description: Created.
+          headers:
+            Location: { $ref: '#/components/headers/Location' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ComponentSummary' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '422': { $ref: '#/components/responses/Unprocessable' }
+  /components/{componentId}/versions:
+    parameters:
+      - $ref: '#/components/parameters/ComponentId'
+    get:
+      tags: [components]
+      operationId: listComponentVersions
+      x-permission: component.use
+      responses:
+        '200':
+          description: Versions, newest first.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items: { type: array, items: { $ref: '#/components/schemas/ComponentVersionSummary' } }
+                required: [items]
+        '404': { $ref: '#/components/responses/NotFound' }
+    post:
+      tags: [components]
+      operationId: createComponentVersion
+      description: New draft version derived from `fromVersion` with a semver bump. Server enforces that a `minor`/`patch` bump is backward compatible (no removed/retyped props or inputs).
+      x-permission: component.edit
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                fromVersion: { $ref: '#/components/schemas/Semver' }
+                bump: { enum: [major, minor, patch] }
+              required: [fromVersion, bump]
+      responses:
+        '201':
+          description: Draft version.
+          content:
+            application/json:
+              schema: { $ref: '../schemas/component-definition.schema.json' }
+        '409': { $ref: '#/components/responses/Conflict' }
+  /components/{componentId}/versions/{version}:
+    parameters:
+      - $ref: '#/components/parameters/ComponentId'
+      - $ref: '#/components/parameters/Version'
+    get:
+      tags: [components]
+      operationId: getComponentVersion
+      x-permission: component.use
+      responses:
+        '200':
+          description: Version spec.
+          headers:
+            ETag: { $ref: '#/components/headers/ETag' }
+          content:
+            application/json:
+              schema: { $ref: '../schemas/component-definition.schema.json' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    put:
+      tags: [components]
+      operationId: saveComponentVersion
+      description: Only `draft` versions are mutable; published → 409.
+      x-permission: component.edit
+      parameters:
+        - $ref: '#/components/parameters/IfMatch'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '../schemas/component-definition.schema.json' }
+      responses:
+        '200':
+          description: Saved.
+          headers:
+            ETag: { $ref: '#/components/headers/ETag' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '412': { $ref: '#/components/responses/PreconditionFailed' }
+        '422': { $ref: '#/components/responses/Unprocessable' }
+        '428': { $ref: '#/components/responses/PreconditionRequired' }
+  /components/{componentId}/versions/{version}/publish:
+    parameters:
+      - $ref: '#/components/parameters/ComponentId'
+      - $ref: '#/components/parameters/Version'
+    post:
+      tags: [components]
+      operationId: publishComponentVersion
+      x-permission: component.publish
+      responses:
+        '200':
+          description: Version is now immutable and usable by page publishes.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ComponentVersionSummary' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '422': { $ref: '#/components/responses/Unprocessable' }
+  /components/{componentId}/versions/{version}/deprecate:
+    parameters:
+      - $ref: '#/components/parameters/ComponentId'
+      - $ref: '#/components/parameters/Version'
+    post:
+      tags: [components]
+      operationId: deprecateComponentVersion
+      description: Hidden from the palette for new placements; pinned published pages keep working.
+      x-permission: component.publish
+      responses:
+        '200':
+          description: Deprecated.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ComponentVersionSummary' }
+  /components/{componentId}/usages:
+    parameters:
+      - $ref: '#/components/parameters/ComponentId'
+    get:
+      tags: [components]
+      operationId: listComponentUsages
+      description: Where-used from component_usages (drafts) and published_version_pins (published).
+      x-permission: component.use
+      responses:
+        '200':
+          description: Usages.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items: { type: array, items: { $ref: '#/components/schemas/ComponentUsage' } }
+                required: [items]
+
+  # -------------------------------------------------------- object types
+  /projects/{projectId}/object-types:
+    parameters:
+      - $ref: '#/components/parameters/ProjectId'
+    get:
+      tags: [object-types]
+      operationId: listObjectTypes
+      x-permission: object.view
+      parameters:
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Cursor'
+        - { name: category, in: query, schema: { type: string } }
+      responses:
+        '200':
+          description: Object types (latest version summary).
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/VersionedSummaryList' }
+    post:
+      tags: [object-types]
+      operationId: createObjectType
+      x-permission: object_type.edit
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '../schemas/industrial-object-type.schema.json' }
+      responses:
+        '201':
+          description: Created (draft 1.0.0).
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/VersionedSummary' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '422': { $ref: '#/components/responses/Unprocessable' }
+  /object-types/{typeId}/versions/{version}:
+    parameters:
+      - { name: typeId, in: path, required: true, schema: { $ref: '#/components/schemas/Uuid' } }
+      - $ref: '#/components/parameters/Version'
+    get:
+      tags: [object-types]
+      operationId: getObjectTypeVersion
+      x-permission: object.view
+      responses:
+        '200':
+          description: Type version.
+          headers:
+            ETag: { $ref: '#/components/headers/ETag' }
+          content:
+            application/json:
+              schema: { $ref: '../schemas/industrial-object-type.schema.json' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    put:
+      tags: [object-types]
+      operationId: saveObjectTypeVersion
+      x-permission: object_type.edit
+      parameters:
+        - $ref: '#/components/parameters/IfMatch'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '../schemas/industrial-object-type.schema.json' }
+      responses:
+        '200': { description: Saved. }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '412': { $ref: '#/components/responses/PreconditionFailed' }
+        '422': { $ref: '#/components/responses/Unprocessable' }
+  /object-types/{typeId}/versions/{version}/publish:
+    parameters:
+      - { name: typeId, in: path, required: true, schema: { $ref: '#/components/schemas/Uuid' } }
+      - $ref: '#/components/parameters/Version'
+    post:
+      tags: [object-types]
+      operationId: publishObjectTypeVersion
+      x-permission: object_type.edit
+      responses:
+        '200':
+          description: Published.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/VersionedSummary' }
+        '409': { $ref: '#/components/responses/Conflict' }
+
+  # ------------------------------------------------------------- objects
+  /projects/{projectId}/objects:
+    parameters:
+      - $ref: '#/components/parameters/ProjectId'
+    get:
+      tags: [objects]
+      operationId: listObjects
+      x-permission: object.view
+      parameters:
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Q'
+        - { name: typeId, in: query, schema: { $ref: '#/components/schemas/Uuid' } }
+        - { name: parentId, in: query, schema: { $ref: '#/components/schemas/Uuid' } }
+        - { name: tag, in: query, schema: { type: string } }
+      responses:
+        '200':
+          description: Objects.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ObjectList' }
+    post:
+      tags: [objects]
+      operationId: createObject
+      x-permission: object.edit
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '../schemas/industrial-object.schema.json' }
+      responses:
+        '201':
+          description: Created.
+          headers:
+            Location: { $ref: '#/components/headers/Location' }
+            ETag: { $ref: '#/components/headers/ETag' }
+          content:
+            application/json:
+              schema: { $ref: '../schemas/industrial-object.schema.json' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '422': { $ref: '#/components/responses/Unprocessable' }
+  /objects/{objectId}:
+    parameters:
+      - $ref: '#/components/parameters/ObjectId'
+    get:
+      tags: [objects]
+      operationId: getObject
+      x-permission: object.view
+      responses:
+        '200':
+          description: Object.
+          headers:
+            ETag: { $ref: '#/components/headers/ETag' }
+          content:
+            application/json:
+              schema: { $ref: '../schemas/industrial-object.schema.json' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    put:
+      tags: [objects]
+      operationId: replaceObject
+      x-permission: object.edit
+      parameters:
+        - $ref: '#/components/parameters/IfMatch'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '../schemas/industrial-object.schema.json' }
+      responses:
+        '200':
+          description: Saved.
+          headers:
+            ETag: { $ref: '#/components/headers/ETag' }
+          content:
+            application/json:
+              schema: { $ref: '../schemas/industrial-object.schema.json' }
+        '412': { $ref: '#/components/responses/PreconditionFailed' }
+        '422': { $ref: '#/components/responses/Unprocessable' }
+        '428': { $ref: '#/components/responses/PreconditionRequired' }
+    delete:
+      tags: [objects]
+      operationId: decommissionObject
+      description: Sets status=decommissioned. Hard delete is refused while bindings reference the object (409).
+      x-permission: object.edit
+      parameters:
+        - $ref: '#/components/parameters/IfMatch'
+      responses:
+        '204': { description: Decommissioned. }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '412': { $ref: '#/components/responses/PreconditionFailed' }
+  /objects/{objectId}/values:
+    parameters:
+      - $ref: '#/components/parameters/ObjectId'
+    get:
+      tags: [objects]
+      operationId: getObjectValues
+      description: Latest value of each mapped variable, read through the data source adapter. Unmapped/unreachable variables are returned with quality `no_data`, never with a made-up value.
+      x-permission: object.view
+      responses:
+        '200':
+          description: Values.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items: { type: array, items: { $ref: '#/components/schemas/VariableValue' } }
+                required: [items]
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  # -------------------------------------------------------- data sources
+  /projects/{projectId}/data-sources:
+    parameters:
+      - $ref: '#/components/parameters/ProjectId'
+    get:
+      tags: [data-sources]
+      operationId: listDataSources
+      x-permission: data_source.view
+      responses:
+        '200':
+          description: Data sources (secrets never returned).
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items: { type: array, items: { $ref: '#/components/schemas/DataSource' } }
+                required: [items]
+    post:
+      tags: [data-sources]
+      operationId: createDataSource
+      x-permission: data_source.manage
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/DataSourceWrite' }
+      responses:
+        '201':
+          description: Created.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DataSource' }
+        '422': { $ref: '#/components/responses/Unprocessable' }
+  /data-sources/{dataSourceId}:
+    parameters:
+      - $ref: '#/components/parameters/DataSourceId'
+    patch:
+      tags: [data-sources]
+      operationId: updateDataSource
+      x-permission: data_source.manage
+      parameters:
+        - $ref: '#/components/parameters/IfMatch'
+      requestBody:
+        required: true
+        content:
+          application/merge-patch+json:
+            schema: { $ref: '#/components/schemas/DataSourceWrite' }
+      responses:
+        '200':
+          description: Updated.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DataSource' }
+        '412': { $ref: '#/components/responses/PreconditionFailed' }
+        '422': { $ref: '#/components/responses/Unprocessable' }
+    delete:
+      tags: [data-sources]
+      operationId: deleteDataSource
+      x-permission: data_source.manage
+      parameters:
+        - $ref: '#/components/parameters/IfMatch'
+      responses:
+        '204':
+          description: Deleted.
+        '412': { $ref: '#/components/responses/PreconditionFailed' }
+  /data-sources/{dataSourceId}/test:
+    parameters:
+      - $ref: '#/components/parameters/DataSourceId'
+    post:
+      tags: [data-sources]
+      operationId: testDataSource
+      x-permission: data_source.manage
+      responses:
+        '200':
+          description: Connectivity/auth check result (always 200; outcome in body).
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DataSourceTestResult' }
+  /data-sources/{dataSourceId}/signals:
+    parameters:
+      - $ref: '#/components/parameters/DataSourceId'
+    get:
+      tags: [data-sources]
+      operationId: searchSignals
+      description: Browse/search signals exposed by the source (proxied, cached briefly).
+      x-permission: object.edit
+      parameters:
+        - $ref: '#/components/parameters/Q'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: Signals.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items: { type: array, items: { $ref: '#/components/schemas/Signal' } }
+                required: [items]
+        '502': { $ref: '#/components/responses/BadGateway' }
+  /data-sources/{dataSourceId}/execute:
+    parameters:
+      - $ref: '#/components/parameters/DataSourceId'
+    post:
+      tags: [data-sources]
+      operationId: executeDataSourceQuery
+      x-permission: data_source.manage
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                queryKey: { type: string }
+                discover: { type: boolean, default: true }
+              required: [queryKey]
+      responses:
+        '200':
+          description: Execution result with optional discovered schema.
+  /data-sources/{dataSourceId}/discover-schema:
+    parameters:
+      - $ref: '#/components/parameters/DataSourceId'
+    post:
+      tags: [data-sources]
+      operationId: discoverDataSourceSchema
+      x-permission: data_source.manage
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                queryKey: { type: string }
+              required: [queryKey]
+      responses:
+        '200':
+          description: New schema version (and optional diff vs previous).
+  /data-sources/{dataSourceId}/schemas:
+    parameters:
+      - $ref: '#/components/parameters/DataSourceId'
+    get:
+      tags: [data-sources]
+      operationId: listDataSourceSchemas
+      x-permission: object.edit
+      parameters:
+        - name: queryKey
+          in: query
+          schema: { type: string }
+      responses:
+        '200':
+          description: Schema version list.
+  /data-sources/{dataSourceId}/schema/latest:
+    parameters:
+      - $ref: '#/components/parameters/DataSourceId'
+      - name: queryKey
+        in: query
+        required: true
+        schema: { type: string }
+        description: Named query key (may contain '/', e.g. watchlists/signals).
+    get:
+      tags: [data-sources]
+      operationId: getLatestDataSourceSchema
+      x-permission: object.edit
+      responses:
+        '200':
+          description: Latest schema with paths and optional sample.
+  /data-sources/{dataSourceId}/duplicate:
+    parameters:
+      - $ref: '#/components/parameters/DataSourceId'
+    post:
+      tags: [data-sources]
+      operationId: duplicateDataSource
+      x-permission: data_source.manage
+      responses:
+        '201':
+          description: Cloned data source.
+  /data-sources/{dataSourceId}/import-openapi:
+    parameters:
+      - $ref: '#/components/parameters/DataSourceId'
+    post:
+      tags: [data-sources]
+      operationId: importOpenApiIntoDataSource
+      x-permission: data_source.manage
+      responses:
+        '200':
+          description: Queries added from OpenAPI paths.
+  /projects/{projectId}/binding-health:
+    parameters:
+      - $ref: '#/components/parameters/ProjectId'
+    get:
+      tags: [data-bindings]
+      operationId: getBindingHealth
+      x-permission: page.view
+      responses:
+        '200':
+          description: Binding vs schema health report.
+  /data-sources/{dataSourceId}/option-sets:
+    parameters:
+      - $ref: '#/components/parameters/DataSourceId'
+    get:
+      tags: [data-sources]
+      operationId: listDataSourceOptionSets
+      description: >
+        Option catalogs from http_json queries with resultMode=options.
+        Used by the page builder to fill string/text/enum props (not live bindings).
+      x-permission: object.edit
+      responses:
+        '200':
+          description: Option sets.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items: { type: array, items: { $ref: '#/components/schemas/DataSourceOptionSet' } }
+                required: [items]
+        '502': { $ref: '#/components/responses/BadGateway' }
+
+  # ------------------------------------------------------- data bindings
+  /projects/{projectId}/data-bindings:
+    parameters:
+      - $ref: '#/components/parameters/ProjectId'
+    get:
+      tags: [data-bindings]
+      operationId: listDataBindings
+      x-permission: page.view
+      parameters:
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Cursor'
+        - { name: objectId, in: query, schema: { $ref: '#/components/schemas/Uuid' } }
+        - { name: modelId, in: query, schema: { $ref: '#/components/schemas/Uuid' } }
+      responses:
+        '200':
+          description: Bindings.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/BindingList' }
+    post:
+      tags: [data-bindings]
+      operationId: createDataBinding
+      x-permission: page.edit
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '../schemas/data-binding.schema.json' }
+      responses:
+        '201':
+          description: Created.
+          content:
+            application/json:
+              schema: { $ref: '../schemas/data-binding.schema.json' }
+        '422': { $ref: '#/components/responses/Unprocessable' }
+  /data-bindings/{bindingId}:
+    parameters:
+      - $ref: '#/components/parameters/BindingId'
+    get:
+      tags: [data-bindings]
+      operationId: getDataBinding
+      x-permission: page.view
+      responses:
+        '200':
+          description: Binding definition. `ETag` is `"v-<lockVersion>"`.
+          headers:
+            ETag: { schema: { type: string } }
+          content:
+            application/json:
+              schema: { $ref: '../schemas/data-binding.schema.json' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    put:
+      tags: [data-bindings]
+      operationId: replaceDataBinding
+      description: Affects drafts and previews immediately; published versions use their snapshot.
+      x-permission: page.edit
+      parameters:
+        - $ref: '#/components/parameters/IfMatch'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '../schemas/data-binding.schema.json' }
+      responses:
+        '200':
+          description: Saved.
+          content:
+            application/json:
+              schema: { $ref: '../schemas/data-binding.schema.json' }
+        '412': { $ref: '#/components/responses/PreconditionFailed' }
+        '422': { $ref: '#/components/responses/Unprocessable' }
+    patch:
+      tags: [data-bindings]
+      operationId: updateDataBinding
+      x-permission: page.edit
+      parameters:
+        - $ref: '#/components/parameters/IfMatch'
+      requestBody:
+        required: true
+        content:
+          application/merge-patch+json:
+            schema: { $ref: '../schemas/data-binding.schema.json' }
+      responses:
+        '200':
+          description: Updated binding.
+          content:
+            application/json:
+              schema: { $ref: '../schemas/data-binding.schema.json' }
+        '412': { $ref: '#/components/responses/PreconditionFailed' }
+        '422': { $ref: '#/components/responses/Unprocessable' }
+    delete:
+      tags: [data-bindings]
+      operationId: deleteDataBinding
+      x-permission: page.edit
+      parameters:
+        - $ref: '#/components/parameters/IfMatch'
+      responses:
+        '204':
+          description: Deleted.
+        '412': { $ref: '#/components/responses/PreconditionFailed' }
+  /data-bindings/{bindingId}/value:
+    parameters:
+      - $ref: '#/components/parameters/BindingId'
+    get:
+      tags: [data-bindings]
+      operationId: resolveBindingValue
+      description: Current value for editor/preview (design-time).
+      x-permission: page.view
+      responses:
+        '200':
+          description: Value.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/BindingValue' }
+
+  # -------------------------------------------------------------- models
+  /projects/{projectId}/models:
+    parameters:
+      - $ref: '#/components/parameters/ProjectId'
+    get:
+      tags: [models]
+      operationId: listModels
+      x-permission: model.view
+      responses:
+        '200':
+          description: Models.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/VersionedSummaryList' }
+    post:
+      tags: [models]
+      operationId: createModel
+      x-permission: model.edit
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '../schemas/model.schema.json' }
+      responses:
+        '201':
+          description: Created (draft).
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/VersionedSummary' }
+        '422': { $ref: '#/components/responses/Unprocessable' }
+  /models/{modelId}/versions/{version}:
+    parameters:
+      - $ref: '#/components/parameters/ModelId'
+      - $ref: '#/components/parameters/Version'
+    get:
+      tags: [models]
+      operationId: getModelVersion
+      x-permission: model.view
+      responses:
+        '200':
+          description: Model version (formulas include server-compiled `ast`).
+          headers:
+            ETag: { $ref: '#/components/headers/ETag' }
+          content:
+            application/json:
+              schema: { $ref: '../schemas/model.schema.json' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    put:
+      tags: [models]
+      operationId: saveModelVersion
+      x-permission: model.edit
+      parameters:
+        - $ref: '#/components/parameters/IfMatch'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '../schemas/model.schema.json' }
+      responses:
+        '200': { description: Saved. }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '412': { $ref: '#/components/responses/PreconditionFailed' }
+        '422': { $ref: '#/components/responses/Unprocessable' }
+  /models/{modelId}/versions/{version}/validate:
+    parameters:
+      - $ref: '#/components/parameters/ModelId'
+      - $ref: '#/components/parameters/Version'
+    post:
+      tags: [models]
+      operationId: validateModelVersion
+      description: Parses formulas, checks identifiers, units (warning-level in v1) and the dependency DAG. Never executes.
+      x-permission: model.edit
+      responses:
+        '200':
+          description: Validation report.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ModelValidationReport' }
+  /models/{modelId}/versions/{version}/publish:
+    parameters:
+      - $ref: '#/components/parameters/ModelId'
+      - $ref: '#/components/parameters/Version'
+    post:
+      tags: [models]
+      operationId: publishModelVersion
+      x-permission: model.publish
+      responses:
+        '200':
+          description: Published (immutable).
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/VersionedSummary' }
+        '422': { $ref: '#/components/responses/Unprocessable' }
+  /models/{modelId}/runs:
+    parameters:
+      - $ref: '#/components/parameters/ModelId'
+    get:
+      tags: [model-runs]
+      operationId: listModelRuns
+      x-permission: model.view
+      parameters:
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Cursor'
+        - { name: status, in: query, schema: { $ref: '#/components/schemas/RunStatus' } }
+      responses:
+        '200':
+          description: Runs, newest first.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ModelRunList' }
+    post:
+      tags: [model-runs]
+      operationId: startModelRun
+      description: Enqueues an asynchronous run (DB-backed queue, see ADR-0009). Returns immediately.
+      x-permission: model.run
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ModelRunRequest' }
+      responses:
+        '202':
+          description: Accepted (status `queued`). Poll `Location` or subscribe via WebSocket topic `model-run:<id>`.
+          headers:
+            Location: { $ref: '#/components/headers/Location' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ModelRun' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '422': { $ref: '#/components/responses/Unprocessable' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+  /model-runs/{runId}:
+    parameters:
+      - $ref: '#/components/parameters/RunId'
+    get:
+      tags: [model-runs]
+      operationId: getModelRun
+      x-permission: model.view
+      responses:
+        '200':
+          description: Run status.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ModelRun' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /model-runs/{runId}/cancel:
+    parameters:
+      - $ref: '#/components/parameters/RunId'
+    post:
+      tags: [model-runs]
+      operationId: cancelModelRun
+      x-permission: model.run
+      responses:
+        '202':
+          description: Cancellation requested (queued → cancelled immediately; running → worker kills on next heartbeat).
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ModelRun' }
+        '409': { $ref: '#/components/responses/Conflict' }
+  /model-runs/{runId}/results:
+    parameters:
+      - $ref: '#/components/parameters/RunId'
+    get:
+      tags: [model-runs]
+      operationId: getModelRunResults
+      x-permission: model.view
+      responses:
+        '200':
+          description: Output values (only for `succeeded` runs; otherwise 409).
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  runId: { $ref: '#/components/schemas/Uuid' }
+                  items: { type: array, items: { $ref: '#/components/schemas/ModelResult' } }
+                required: [runId, items]
+        '409': { $ref: '#/components/responses/Conflict' }
+
+  # ------------------------------------------------------------- preview
+  /projects/{projectId}/previews:
+    parameters:
+      - $ref: '#/components/parameters/ProjectId'
+    post:
+      tags: [preview]
+      operationId: createPreview
+      description: Creates a short-lived (15 min) preview of a DRAFT revision, rendered by the runtime renderer with draft resolution (latest draft component versions allowed, draft theme optional).
+      x-permission: page.view
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/PreviewRequest' }
+      responses:
+        '201':
+          description: Preview handle.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Preview' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/Unprocessable' }
+  /previews/{previewId}:
+    parameters:
+      - { name: previewId, in: path, required: true, schema: { $ref: '#/components/schemas/Uuid' } }
+    get:
+      tags: [preview]
+      operationId: getPreviewBundle
+      x-permission: page.view (same user that created it)
+      responses:
+        '200':
+          description: Render bundle for the preview.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/RenderBundle' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '410': { $ref: '#/components/responses/Gone' }
+
+  # ------------------------------------------------------------- runtime
+  /runtime/sites/{projectSlug}/resolve:
+    parameters:
+      - { name: projectSlug, in: path, required: true, schema: { $ref: '#/components/schemas/Slug' } }
+    get:
+      tags: [runtime]
+      operationId: resolveRuntimePage
+      description: |
+        Resolves a runtime URL path to the LIVE published version and returns the immutable render
+        bundle (document, pinned component specs, theme tokens, resolved header/footer, binding plan).
+        Read-only, cacheable by `ETag` (= published version id). Never touches drafts.
+      security:
+        - sessionCookie: []
+        - bearerAuth: []
+        - {}
+      x-permission: runtime.view (anonymous allowed only if project.runtimeVisibility = public)
+      parameters:
+        - { name: path, in: query, required: true, schema: { type: string, pattern: '^/[a-z0-9/-]*$', maxLength: 255 } }
+      responses:
+        '200':
+          description: Bundle.
+          headers:
+            ETag: { $ref: '#/components/headers/ETag' }
+            Cache-Control: { schema: { type: string } }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/RenderBundle' }
+        '304': { description: Not modified. }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /runtime/sites/{projectSlug}/values:
+    parameters:
+      - { name: projectSlug, in: path, required: true, schema: { $ref: '#/components/schemas/Slug' } }
+    get:
+      tags: [runtime]
+      operationId: getRuntimeValues
+      description: Snapshot of current values for bindings contained in a published version (fallback when WebSocket is unavailable). Binding ids not in that version are rejected.
+      security:
+        - sessionCookie: []
+        - bearerAuth: []
+        - {}
+      x-permission: runtime.view
+      parameters:
+        - { name: publishedVersionId, in: query, required: true, schema: { $ref: '#/components/schemas/Uuid' } }
+      responses:
+        '200':
+          description: Values.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items: { type: array, items: { $ref: '#/components/schemas/BindingValue' } }
+                required: [items]
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  # --------------------------------------------------------------- audit
+  /projects/{projectId}/audit-logs:
+    parameters:
+      - $ref: '#/components/parameters/ProjectId'
+    get:
+      tags: [audit]
+      operationId: listAuditLogs
+      x-permission: project.audit
+      parameters:
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Cursor'
+        - { name: entityType, in: query, schema: { type: string } }
+        - { name: entityId, in: query, schema: { $ref: '#/components/schemas/Uuid' } }
+        - { name: actorId, in: query, schema: { $ref: '#/components/schemas/Uuid' } }
+      responses:
+        '200':
+          description: Audit entries, newest first.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AuditLogList' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+components:
+  securitySchemes:
+    sessionCookie:
+      type: apiKey
+      in: cookie
+      name: ipsid
+      description: Opaque server-side session id (HttpOnly, Secure, SameSite=Lax). Unsafe methods also require header `X-CSRF-Token`.
+    bearerAuth:
+      type: http
+      scheme: bearer
+      description: Personal/service access token (later phase; same permission model).
+
+  headers:
+    ETag:
+      description: Strong validator. Documents use "rev-<n>", other resources "v-<lockVersion>".
+      schema: { type: string }
+    Location:
+      schema: { type: string, format: uri-reference }
+
+  parameters:
+    ProjectId: { name: projectId, in: path, required: true, schema: { $ref: '#/components/schemas/Uuid' } }
+    PageId: { name: pageId, in: path, required: true, schema: { $ref: '#/components/schemas/Uuid' } }
+    PartId: { name: partId, in: path, required: true, schema: { $ref: '#/components/schemas/Uuid' } }
+    ThemeId: { name: themeId, in: path, required: true, schema: { $ref: '#/components/schemas/Uuid' } }
+    ComponentId: { name: componentId, in: path, required: true, schema: { $ref: '#/components/schemas/Uuid' } }
+    ObjectId: { name: objectId, in: path, required: true, schema: { $ref: '#/components/schemas/Uuid' } }
+    DataSourceId: { name: dataSourceId, in: path, required: true, schema: { $ref: '#/components/schemas/Uuid' } }
+    BindingId: { name: bindingId, in: path, required: true, schema: { $ref: '#/components/schemas/Uuid' } }
+    ModelId: { name: modelId, in: path, required: true, schema: { $ref: '#/components/schemas/Uuid' } }
+    RunId: { name: runId, in: path, required: true, schema: { $ref: '#/components/schemas/Uuid' } }
+    RevisionNo: { name: revisionNo, in: path, required: true, schema: { type: integer, minimum: 1 } }
+    Version: { name: version, in: path, required: true, schema: { $ref: '#/components/schemas/Semver' } }
+    Limit: { name: limit, in: query, schema: { type: integer, minimum: 1, maximum: 200, default: 50 } }
+    Cursor: { name: cursor, in: query, schema: { type: string, maxLength: 512 }, description: Opaque cursor from a previous `nextCursor`. }
+    Q: { name: q, in: query, schema: { type: string, maxLength: 120 }, description: Case-insensitive search on name/key/title. }
+    Sort: { name: sort, in: query, schema: { type: string, pattern: '^-?[a-zA-Z]+$' }, description: 'Whitelisted field, "-" prefix = descending.' }
+    IfMatch: { name: If-Match, in: header, required: true, schema: { type: string }, description: ETag of the version being modified. }
+    IdempotencyKey: { name: Idempotency-Key, in: header, required: false, schema: { type: string, maxLength: 100 } }
+
+  responses:
+    Unauthorized:
+      description: Not authenticated.
+      content: { application/problem+json: { schema: { $ref: '#/components/schemas/Problem' } } }
+    Forbidden:
+      description: Authenticated member of the project but lacks the permission. Resources of projects the caller is not a member of return 404 so their existence is not leaked.
+      content: { application/problem+json: { schema: { $ref: '#/components/schemas/Problem' } } }
+    NotFound:
+      description: Not found (or not visible to the caller).
+      content: { application/problem+json: { schema: { $ref: '#/components/schemas/Problem' } } }
+    Conflict:
+      description: State conflict (e.g. published resources are immutable, unique key taken, run not finished).
+      content: { application/problem+json: { schema: { $ref: '#/components/schemas/Problem' } } }
+    Gone:
+      description: Expired.
+      content: { application/problem+json: { schema: { $ref: '#/components/schemas/Problem' } } }
+    PreconditionFailed:
+      description: If-Match does not match the current version. Body includes `currentEtag`.
+      content: { application/problem+json: { schema: { $ref: '#/components/schemas/Problem' } } }
+    PreconditionRequired:
+      description: If-Match header missing.
+      content: { application/problem+json: { schema: { $ref: '#/components/schemas/Problem' } } }
+    PayloadTooLarge:
+      description: Document exceeds the size limit (v1 2 MiB).
+      content: { application/problem+json: { schema: { $ref: '#/components/schemas/Problem' } } }
+    Unprocessable:
+      description: Schema or semantic validation failed.
+      content: { application/problem+json: { schema: { $ref: '#/components/schemas/Problem' } } }
+    TooManyRequests:
+      description: Rate limited.
+      headers:
+        Retry-After: { schema: { type: integer } }
+      content: { application/problem+json: { schema: { $ref: '#/components/schemas/Problem' } } }
+    BadGateway:
+      description: Upstream data source failed.
+      content: { application/problem+json: { schema: { $ref: '#/components/schemas/Problem' } } }
+
+  schemas:
+    Uuid: { $ref: '../schemas/common.schema.json#/$defs/uuid' }
+    Semver: { $ref: '../schemas/common.schema.json#/$defs/semver' }
+    Slug: { $ref: '../schemas/common.schema.json#/$defs/slug' }
+    PublishStatus: { $ref: '../schemas/common.schema.json#/$defs/publishStatus' }
+    Timestamp: { type: string, format: date-time }
+    RoleKey: { enum: [owner, admin, designer, engineer, operator, viewer] }
+    RunStatus: { enum: [queued, running, succeeded, failed, cancelled, timed_out] }
+
+    Problem:
+      description: RFC 9457 problem details.
+      type: object
+      properties:
+        type: { type: string, format: uri-reference, examples: ['https://errors.industrial-platform.local/document-conflict'] }
+        title: { type: string }
+        status: { type: integer, minimum: 400, maximum: 599 }
+        detail: { type: string }
+        instance: { type: string }
+        code: { type: string, description: 'Stable machine code, e.g. "precondition_failed", "duplicate_node_id".' }
+        requestId: { type: string }
+        currentEtag: { type: string }
+        errors:
+          type: array
+          items:
+            type: object
+            properties:
+              pointer: { type: string, description: JSON Pointer into the request body. }
+              code: { type: string }
+              message: { type: string }
+            required: [pointer, code, message]
+      required: [type, title, status]
+
+    CursorPage:
+      type: object
+      properties:
+        nextCursor: { type: [string, 'null'] }
+      required: [nextCursor]
+
+    LoginRequest:
+      type: object
+      properties:
+        username: { type: string, minLength: 1, maxLength: 120 }
+        password: { type: string, minLength: 1, maxLength: 512, writeOnly: true }
+      required: [username, password]
+      additionalProperties: false
+    Session:
+      type: object
+      properties:
+        user: { $ref: '#/components/schemas/User' }
+        csrfToken: { type: string }
+        expiresAt: { $ref: '#/components/schemas/Timestamp' }
+      required: [user, csrfToken, expiresAt]
+    User:
+      type: object
+      properties:
+        id: { $ref: '#/components/schemas/Uuid' }
+        username: { type: string }
+        displayName: { type: string }
+        locale: { type: string }
+      required: [id, username, displayName]
+    Me:
+      type: object
+      properties:
+        user: { $ref: '#/components/schemas/User' }
+        platformPermissions: { type: array, items: { type: string } }
+        memberships:
+          type: array
+          items:
+            type: object
+            properties:
+              projectId: { $ref: '#/components/schemas/Uuid' }
+              role: { $ref: '#/components/schemas/RoleKey' }
+              permissions: { type: array, items: { type: string } }
+            required: [projectId, role, permissions]
+      required: [user, memberships]
+    Member:
+      type: object
+      properties:
+        user: { $ref: '#/components/schemas/User' }
+        role: { $ref: '#/components/schemas/RoleKey' }
+        addedAt: { $ref: '#/components/schemas/Timestamp' }
+      required: [user, role]
+
+    Project:
+      type: object
+      properties:
+        id: { $ref: '#/components/schemas/Uuid' }
+        slug: { $ref: '#/components/schemas/Slug' }
+        name: { type: string }
+        description: { type: string }
+        status: { enum: [active, archived] }
+        activeThemeId: { oneOf: [{ $ref: '#/components/schemas/Uuid' }, { type: 'null' }] }
+        runtimeVisibility: { enum: [members, public] }
+        lockVersion: { type: integer }
+        createdAt: { $ref: '#/components/schemas/Timestamp' }
+        updatedAt: { $ref: '#/components/schemas/Timestamp' }
+      required: [id, slug, name, status, runtimeVisibility, lockVersion, createdAt, updatedAt]
+    ProjectCreate:
+      type: object
+      properties:
+        slug: { $ref: '#/components/schemas/Slug' }
+        name: { type: string, minLength: 1, maxLength: 120 }
+        description: { type: string, maxLength: 2000 }
+      required: [slug, name]
+      additionalProperties: false
+    ProjectPatch:
+      type: object
+      properties:
+        name: { type: string, minLength: 1, maxLength: 120 }
+        description: { type: string, maxLength: 2000 }
+        activeThemeId: { $ref: '#/components/schemas/Uuid' }
+        runtimeVisibility: { enum: [members, public] }
+      additionalProperties: false
+    ProjectList:
+      allOf:
+        - $ref: '#/components/schemas/CursorPage'
+        - type: object
+          properties:
+            items: { type: array, items: { $ref: '#/components/schemas/Project' } }
+          required: [items]
+
+    Page: { $ref: '../schemas/page.schema.json' }
+    PageCreate:
+      type: object
+      properties:
+        kind: { enum: [page, dashboard] }
+        title: { $ref: '../schemas/common.schema.json#/$defs/localizedText' }
+        slug: { $ref: '#/components/schemas/Slug' }
+        path: { type: string, maxLength: 255 }
+        templateId: { $ref: '#/components/schemas/Uuid' }
+        document: { $ref: '../schemas/document.schema.json' }
+      required: [title, slug, path]
+      additionalProperties: false
+    PageMetaPatch:
+      type: object
+      properties:
+        title: { $ref: '../schemas/common.schema.json#/$defs/localizedText' }
+        slug: { $ref: '#/components/schemas/Slug' }
+        path: { type: string, maxLength: 255 }
+        templateId: { oneOf: [{ $ref: '#/components/schemas/Uuid' }, { type: 'null' }] }
+        headerPolicy: { $ref: '../schemas/page.schema.json#/properties/headerPolicy' }
+        seo: { $ref: '../schemas/page.schema.json#/properties/seo' }
+      additionalProperties: false
+    PageSummary:
+      type: object
+      properties:
+        id: { $ref: '#/components/schemas/Uuid' }
+        kind: { enum: [page, dashboard] }
+        title: { $ref: '../schemas/common.schema.json#/$defs/localizedText' }
+        slug: { $ref: '#/components/schemas/Slug' }
+        path: { type: string }
+        status: { $ref: '#/components/schemas/PublishStatus' }
+        headRevision: { type: integer }
+        livePublishedVersionNo: { type: [integer, 'null'] }
+        hasUnpublishedChanges: { type: boolean }
+        updatedAt: { $ref: '#/components/schemas/Timestamp' }
+        updatedBy: { $ref: '#/components/schemas/User' }
+      required: [id, kind, title, slug, path, status, headRevision, hasUnpublishedChanges, updatedAt]
+    PageSummaryList:
+      allOf:
+        - $ref: '#/components/schemas/CursorPage'
+        - type: object
+          properties:
+            items: { type: array, items: { $ref: '#/components/schemas/PageSummary' } }
+          required: [items]
+
+    DocumentSummary:
+      type: object
+      properties:
+        id: { $ref: '#/components/schemas/Uuid' }
+        documentType: { enum: [page, template, template_part, dashboard] }
+        name: { type: string }
+        partType: { enum: [header, footer] }
+        status: { $ref: '#/components/schemas/PublishStatus' }
+        headRevision: { type: integer }
+        updatedAt: { $ref: '#/components/schemas/Timestamp' }
+      required: [id, documentType, name, status, headRevision, updatedAt]
+    DocumentSummaryList:
+      allOf:
+        - $ref: '#/components/schemas/CursorPage'
+        - type: object
+          properties:
+            items: { type: array, items: { $ref: '#/components/schemas/DocumentSummary' } }
+          required: [items]
+    NamedDocumentCreate:
+      type: object
+      properties:
+        name: { type: string, minLength: 1, maxLength: 120 }
+        document: { $ref: '../schemas/document.schema.json' }
+      required: [name]
+      additionalProperties: false
+    DocumentSave:
+      type: object
+      properties:
+        content: { $ref: '../schemas/document.schema.json' }
+        message: { type: string, maxLength: 500, description: Optional revision note. }
+        autosave: { type: boolean, default: false, description: Autosave revisions are eligible for pruning (never if referenced by a published version). }
+      required: [content]
+      additionalProperties: false
+    RevisionSummary:
+      type: object
+      properties:
+        revisionNo: { type: integer, minimum: 1 }
+        schemaVersion: { type: integer }
+        contentHash: { type: string, description: sha256 of canonical JSON. }
+        message: { type: [string, 'null'] }
+        autosave: { type: boolean }
+        restoredFrom: { type: [integer, 'null'] }
+        createdAt: { $ref: '#/components/schemas/Timestamp' }
+        createdBy: { $ref: '#/components/schemas/User' }
+      required: [revisionNo, schemaVersion, contentHash, createdAt]
+    DocumentRevision:
+      allOf:
+        - $ref: '#/components/schemas/RevisionSummary'
+        - type: object
+          properties:
+            content: { $ref: '../schemas/document.schema.json' }
+            migratedFrom: { type: [integer, 'null'], description: Stored schemaVersion if migrated on read. }
+          required: [content]
+    RevisionList:
+      allOf:
+        - $ref: '#/components/schemas/CursorPage'
+        - type: object
+          properties:
+            items: { type: array, items: { $ref: '#/components/schemas/RevisionSummary' } }
+          required: [items]
+
+    PublishRequest:
+      type: object
+      properties:
+        revisionNo: { type: integer, minimum: 1, description: Revision to publish (must be the caller-seen head or older). }
+        note: { type: string, maxLength: 500 }
+      required: [revisionNo]
+      additionalProperties: false
+    PublishedVersion:
+      type: object
+      properties:
+        id: { $ref: '#/components/schemas/Uuid' }
+        documentId: { $ref: '#/components/schemas/Uuid' }
+        versionNo: { type: integer, minimum: 1 }
+        sourceRevisionNo: { type: integer }
+        bundleHash: { type: string }
+        pins:
+          type: object
+          properties:
+            components:
+              type: array
+              items:
+                type: object
+                properties:
+                  definitionId: { $ref: '#/components/schemas/Uuid' }
+                  version: { $ref: '#/components/schemas/Semver' }
+                required: [definitionId, version]
+            themeVersionId: { $ref: '#/components/schemas/Uuid' }
+            templatePartVersionIds: { type: array, items: { $ref: '#/components/schemas/Uuid' } }
+            modelVersionIds: { type: array, items: { $ref: '#/components/schemas/Uuid' } }
+          required: [components]
+        isLive: { type: boolean }
+        containsTestData: { type: boolean }
+        note: { type: [string, 'null'] }
+        publishedAt: { $ref: '#/components/schemas/Timestamp' }
+        publishedBy: { $ref: '#/components/schemas/User' }
+      required: [id, documentId, versionNo, sourceRevisionNo, bundleHash, pins, isLive, containsTestData, publishedAt]
+    PublishedVersionList:
+      allOf:
+        - $ref: '#/components/schemas/CursorPage'
+        - type: object
+          properties:
+            items: { type: array, items: { $ref: '#/components/schemas/PublishedVersion' } }
+          required: [items]
+
+    ThemeSummary:
+      type: object
+      properties:
+        id: { $ref: '#/components/schemas/Uuid' }
+        name: { type: string }
+        draftVersion: { type: integer }
+        publishedVersion: { type: [integer, 'null'] }
+        isActive: { type: boolean }
+      required: [id, name, draftVersion, isActive]
+
+    Menu:
+      type: object
+      properties:
+        id: { $ref: '#/components/schemas/Uuid', readOnly: true }
+        name: { type: string, minLength: 1, maxLength: 120 }
+        items: { type: array, maxItems: 200, items: { $ref: '#/components/schemas/MenuItem' } }
+        lockVersion: { type: integer, readOnly: true }
+      required: [name, items]
+    MenuItem:
+      type: object
+      properties:
+        id: { $ref: '#/components/schemas/Uuid' }
+        label: { $ref: '../schemas/common.schema.json#/$defs/localizedText' }
+        link:
+          oneOf:
+            - type: object
+              properties: { kind: { const: page }, pageId: { $ref: '#/components/schemas/Uuid' } }
+              required: [kind, pageId]
+              additionalProperties: false
+            - type: object
+              properties: { kind: { const: url }, url: { type: string, pattern: '^(https://|/)[^\s<>"]*$', maxLength: 2000 } }
+              required: [kind, url]
+              additionalProperties: false
+        children: { type: array, maxItems: 50, items: { $ref: '#/components/schemas/MenuItem' } }
+        broken: { type: boolean, readOnly: true }
+      required: [label, link]
+
+    Renderer:
+      type: object
+      properties:
+        rendererId: { type: string, examples: ['builtin.kpi-card@1'] }
+        category: { type: string }
+        supportedInputs: { type: array, items: { type: string } }
+        description: { type: string }
+      required: [rendererId, category]
+    ComponentSummary:
+      type: object
+      properties:
+        id: { $ref: '#/components/schemas/Uuid' }
+        key: { type: string }
+        name: { $ref: '../schemas/common.schema.json#/$defs/localizedText' }
+        category: { type: string }
+        scope: { enum: [global, project] }
+        latestPublishedVersion: { oneOf: [{ $ref: '#/components/schemas/Semver' }, { type: 'null' }] }
+        draftVersion: { oneOf: [{ $ref: '#/components/schemas/Semver' }, { type: 'null' }] }
+      required: [id, key, name, category, scope]
+    ComponentSummaryList:
+      allOf:
+        - $ref: '#/components/schemas/CursorPage'
+        - type: object
+          properties:
+            items: { type: array, items: { $ref: '#/components/schemas/ComponentSummary' } }
+          required: [items]
+    ComponentVersionSummary:
+      type: object
+      properties:
+        definitionId: { $ref: '#/components/schemas/Uuid' }
+        version: { $ref: '#/components/schemas/Semver' }
+        status: { $ref: '#/components/schemas/PublishStatus' }
+        rendererId: { type: string }
+        publishedAt: { oneOf: [{ $ref: '#/components/schemas/Timestamp' }, { type: 'null' }] }
+      required: [definitionId, version, status, rendererId]
+    ComponentUsage:
+      type: object
+      properties:
+        documentId: { $ref: '#/components/schemas/Uuid' }
+        documentType: { type: string }
+        title: { type: string }
+        nodeId: { type: string }
+        version: { $ref: '#/components/schemas/Semver' }
+        in: { enum: [draft, published] }
+        publishedVersionNo: { type: [integer, 'null'] }
+      required: [documentId, documentType, nodeId, version, in]
+
+    VersionedSummary:
+      type: object
+      properties:
+        id: { $ref: '#/components/schemas/Uuid' }
+        key: { type: string }
+        name: { $ref: '../schemas/common.schema.json#/$defs/localizedText' }
+        latestVersion: { $ref: '#/components/schemas/Semver' }
+        latestPublishedVersion: { oneOf: [{ $ref: '#/components/schemas/Semver' }, { type: 'null' }] }
+        updatedAt: { $ref: '#/components/schemas/Timestamp' }
+      required: [id, key, name, latestVersion]
+    VersionedSummaryList:
+      allOf:
+        - $ref: '#/components/schemas/CursorPage'
+        - type: object
+          properties:
+            items: { type: array, items: { $ref: '#/components/schemas/VersionedSummary' } }
+          required: [items]
+
+    ObjectList:
+      allOf:
+        - $ref: '#/components/schemas/CursorPage'
+        - type: object
+          properties:
+            items: { type: array, items: { $ref: '../schemas/industrial-object.schema.json' } }
+          required: [items]
+    VariableValue:
+      type: object
+      properties:
+        variable: { type: string }
+        value: { type: [number, string, boolean, 'null'] }
+        unit: { type: string }
+        quality: { enum: [good, uncertain, bad, stale, no_data] }
+        sourceTimestamp: { oneOf: [{ $ref: '#/components/schemas/Timestamp' }, { type: 'null' }] }
+        receivedAt: { oneOf: [{ $ref: '#/components/schemas/Timestamp' }, { type: 'null' }] }
+        dataOrigin: { $ref: '#/components/schemas/DataOrigin' }
+        isTestData: { $ref: '#/components/schemas/IsTestData' }
+      required: [variable, value, quality, dataOrigin, isTestData]
+
+    DataOrigin:
+      description: Where a value physically comes from. `simulated` values are TEST DATA (ADR-0012, D-05) and must be labelled as such by every UI.
+      enum: [live, simulated, manual, model, static]
+    IsTestData:
+      type: boolean
+      description: True when the value does not come from a real plant measurement. UIs MUST show a visible "داده آزمایشی / Test data" badge.
+
+    DataSource:
+      type: object
+      properties:
+        id: { $ref: '#/components/schemas/Uuid' }
+        projectId: { $ref: '#/components/schemas/Uuid' }
+        name: { type: string }
+        kind:
+          description: "`simulated` = deterministic test-data generator (VS-1). `scada_http_ws` is feature-flagged (IP_FEATURE_SCADA_ADAPTER) and not implemented yet; `manual` is reserved."
+          enum: [simulated, scada_http_ws, manual]
+        config: { oneOf: [{ $ref: '#/components/schemas/SimulatedConfig' }, { $ref: '#/components/schemas/ScadaConfig' }] }
+        hasCredentials: { type: boolean, description: Credentials exist (never returned). }
+        status: { enum: [unknown, healthy, degraded, unreachable] }
+        lastCheckedAt: { oneOf: [{ $ref: '#/components/schemas/Timestamp' }, { type: 'null' }] }
+        dataOrigin: { $ref: '#/components/schemas/DataOrigin' }
+        isTestData: { $ref: '#/components/schemas/IsTestData' }
+        lockVersion: { type: integer }
+      required: [id, name, kind, status, hasCredentials, dataOrigin, isTestData, lockVersion]
+    SimulatedConfig:
+      type: object
+      description: Deterministic PV-like profile (pure function of signal config and timestamp). Produces TEST DATA only.
+      properties:
+        utcOffsetMinutes: { type: integer, default: 0, examples: [210] }
+        offline: { type: boolean, default: false, description: Outage simulation — every read returns no value (quality no_data). }
+        signals:
+          type: array
+          minItems: 1
+          items:
+            type: object
+            properties:
+              path: { type: string, pattern: '^[A-Za-z0-9_./:-]{1,255}$' }
+              unit: { type: string }
+              kind: { enum: [power, energy_today] }
+              peak: { type: number, exclusiveMinimum: 0 }
+            required: [path, unit, kind, peak]
+            additionalProperties: false
+      required: [signals]
+      additionalProperties: false
+    ScadaConfig:
+      type: object
+      properties:
+        baseUrl: { type: string, format: uri, description: 'Server-side only; e.g. http://10.8.0.8:4000 (allow-listed hosts).' }
+        apiPrefix: { type: string, default: /api/v1 }
+        websocket: { type: boolean, default: true }
+        pollIntervalMs: { type: integer, minimum: 1000, default: 5000 }
+      required: [baseUrl]
+      additionalProperties: false
+    DataSourceWrite:
+      type: object
+      properties:
+        name: { type: string, minLength: 1, maxLength: 120 }
+        kind:
+          description: Only `simulated` is creatable in VS-1; other kinds return 422 `adapter_not_available`.
+          enum: [simulated, scada_http_ws, manual]
+        config: { oneOf: [{ $ref: '#/components/schemas/SimulatedConfig' }, { $ref: '#/components/schemas/ScadaConfig' }] }
+        credentials:
+          type: object
+          writeOnly: true
+          description: Encrypted at rest (app-level envelope encryption, key from environment). Never echoed.
+          properties:
+            username: { type: string }
+            password: { type: string }
+          additionalProperties: false
+      additionalProperties: false
+    DataSourceTestResult:
+      type: object
+      properties:
+        ok: { type: boolean }
+        latencyMs: { type: [integer, 'null'] }
+        authenticated: { type: boolean }
+        message: { type: string }
+        isTestData: { $ref: '#/components/schemas/IsTestData' }
+      required: [ok, message]
+    Signal:
+      type: object
+      properties:
+        path: { type: string, examples: ['Darkhoveyn/JB-01/INV-01/AC_POWER'] }
+        unit: { type: [string, 'null'] }
+        lastValue: { type: [number, string, boolean, 'null'] }
+        lastSeen: { oneOf: [{ $ref: '#/components/schemas/Timestamp' }, { type: 'null' }] }
+        refreshIntervalMs:
+          type: integer
+          minimum: 1000
+          maximum: 3600000
+          description: How often the upstream HTTP query may be called (server-side cache TTL).
+        isTestData: { $ref: '#/components/schemas/IsTestData' }
+      required: [path]
+    DataSourceOption:
+      type: object
+      properties:
+        value: { type: string }
+        label: { type: string }
+        fieldPath:
+          type: string
+          description: >
+            When set (e.g. $[0].totals.totalAcPower), the page builder should create a live
+            data_source_signal binding with this fieldPath instead of a static string.
+        sampleValue:
+          description: Current sample for preview in the picker.
+          type: [number, string, boolean, 'null']
+      required: [value, label]
+    DataSourceOptionGroup:
+      type: object
+      description: >
+        Parent row (e.g. a watchlist) with nested selectable items (e.g. signals).
+        When a set has more than one group, the UI picks parent first then items;
+        a single group skips straight to items.
+      properties:
+        value: { type: string }
+        label: { type: string }
+        options: { type: array, items: { $ref: '#/components/schemas/DataSourceOption' } }
+      required: [value, label, options]
+    DataSourceOptionSet:
+      type: object
+      properties:
+        key: { type: string, examples: ['watchlists/signals'] }
+        name: { type: string }
+        options: { type: array, items: { $ref: '#/components/schemas/DataSourceOption' } }
+        groups:
+          type: array
+          items: { $ref: '#/components/schemas/DataSourceOptionGroup' }
+          description: Optional parent→child layering; omit or empty when options are already flat.
+      required: [key, name, options]
+
+    BindingList:
+      allOf:
+        - $ref: '#/components/schemas/CursorPage'
+        - type: object
+          properties:
+            items: { type: array, items: { $ref: '../schemas/data-binding.schema.json' } }
+          required: [items]
+    BindingValue:
+      type: object
+      properties:
+        bindingId: { $ref: '#/components/schemas/Uuid' }
+        value:
+          description: Scalar measurement or structured JSON (object/array) from an HTTP data-source query with resultMode=json.
+          type: [number, string, boolean, object, array, 'null']
+        unit: { type: [string, 'null'] }
+        quality: { enum: [good, uncertain, bad, stale, no_data] }
+        sourceTimestamp: { oneOf: [{ $ref: '#/components/schemas/Timestamp' }, { type: 'null' }] }
+        origin: { enum: [object_variable, model_output, static, data_source_signal], description: Binding source kind; lets the UI label model results and static values distinctly from measurements. }
+        dataOrigin: { $ref: '#/components/schemas/DataOrigin' }
+        isTestData: { $ref: '#/components/schemas/IsTestData' }
+        modelRunId: { oneOf: [{ $ref: '#/components/schemas/Uuid' }, { type: 'null' }] }
+      required: [bindingId, value, quality, origin, dataOrigin, isTestData]
+
+    ModelValidationReport:
+      type: object
+      properties:
+        valid: { type: boolean }
+        issues:
+          type: array
+          items:
+            type: object
+            properties:
+              code: { type: string, examples: [undeclared_identifier, dependency_cycle, unknown_function, unit_mismatch] }
+              path: { type: string }
+              severity: { enum: [error, warning] }
+              message: { type: string }
+            required: [code, path, severity, message]
+        evaluationOrder: { type: array, items: { type: string } }
+      required: [valid, issues]
+    ModelRunRequest:
+      type: object
+      properties:
+        version: { $ref: '#/components/schemas/Semver', description: Must be published (drafts only with `dryRun`). }
+        arguments:
+          type: object
+          description: Values for inputs whose source is `run_argument` (or overrides). Key = input key.
+          additionalProperties: { type: number }
+        parameters:
+          type: object
+          additionalProperties: { type: number }
+        dryRun: { type: boolean, default: false, description: Allows draft versions; results are not visible to bindings. }
+      required: [version]
+      additionalProperties: false
+    ModelRun:
+      type: object
+      properties:
+        id: { $ref: '#/components/schemas/Uuid' }
+        modelId: { $ref: '#/components/schemas/Uuid' }
+        version: { $ref: '#/components/schemas/Semver' }
+        status: { $ref: '#/components/schemas/RunStatus' }
+        trigger: { enum: [manual, schedule, event] }
+        dryRun: { type: boolean }
+        resolvedInputs:
+          type: object
+          description: Snapshot of every input value actually used, with provenance.
+          additionalProperties:
+            type: object
+            properties:
+              value: { type: number }
+              unit: { type: string }
+              source: { type: string }
+              sourceTimestamp: { oneOf: [{ $ref: '#/components/schemas/Timestamp' }, { type: 'null' }] }
+        error:
+          oneOf:
+            - type: 'null'
+            - type: object
+              properties:
+                code: { enum: [validation_failed, input_unavailable, timeout, step_limit, math_error, cancelled, internal] }
+                message: { type: string }
+              required: [code, message]
+        queuedAt: { $ref: '#/components/schemas/Timestamp' }
+        startedAt: { oneOf: [{ $ref: '#/components/schemas/Timestamp' }, { type: 'null' }] }
+        finishedAt: { oneOf: [{ $ref: '#/components/schemas/Timestamp' }, { type: 'null' }] }
+        requestedBy: { $ref: '#/components/schemas/User' }
+      required: [id, modelId, version, status, trigger, queuedAt]
+    ModelRunList:
+      allOf:
+        - $ref: '#/components/schemas/CursorPage'
+        - type: object
+          properties:
+            items: { type: array, items: { $ref: '#/components/schemas/ModelRun' } }
+          required: [items]
+    ModelResult:
+      type: object
+      properties:
+        output: { type: string }
+        value: { type: [number, boolean, 'null'] }
+        unit: { type: string }
+        computedAt: { $ref: '#/components/schemas/Timestamp' }
+      required: [output, value, unit, computedAt]
+
+    PreviewRequest:
+      type: object
+      properties:
+        target:
+          type: object
+          properties:
+            documentId: { $ref: '#/components/schemas/Uuid' }
+            revisionNo: { type: integer, minimum: 1, description: Defaults to head. }
+          required: [documentId]
+        breakpoint: { $ref: '../schemas/common.schema.json#/$defs/breakpoint' }
+        themeMode: { enum: [published, draft], default: published }
+      required: [target]
+      additionalProperties: false
+    Preview:
+      type: object
+      properties:
+        id: { $ref: '#/components/schemas/Uuid' }
+        url: { type: string, description: Runtime-app URL that loads the preview bundle. }
+        expiresAt: { $ref: '#/components/schemas/Timestamp' }
+      required: [id, url, expiresAt]
+
+    RenderBundle:
+      description: Everything the runtime renderer needs; contains no secrets and no draft data (except for previews, flagged by `mode`).
+      type: object
+      properties:
+        mode: { enum: [runtime, preview] }
+        publishedVersionId: { oneOf: [{ $ref: '#/components/schemas/Uuid' }, { type: 'null' }] }
+        page:
+          type: object
+          properties:
+            id: { $ref: '#/components/schemas/Uuid' }
+            title: { $ref: '../schemas/common.schema.json#/$defs/localizedText' }
+            path: { type: string }
+          required: [id, title, path]
+        document: { $ref: '../schemas/document.schema.json' }
+        header: { oneOf: [{ $ref: '../schemas/document.schema.json' }, { type: 'null' }] }
+        footer: { oneOf: [{ $ref: '../schemas/document.schema.json' }, { type: 'null' }] }
+        components:
+          type: array
+          description: Pinned component definition versions used by the documents.
+          items: { $ref: '../schemas/component-definition.schema.json' }
+        theme: { $ref: '../schemas/theme.schema.json' }
+        menus: { type: array, items: { $ref: '#/components/schemas/Menu' } }
+        bindings:
+          type: array
+          description: Snapshot of binding specs; resolved values arrive via /values or WebSocket.
+          items: { $ref: '../schemas/data-binding.schema.json' }
+        bindingOrigins:
+          type: object
+          description: bindingId -> origin of its values at publish time. Runtime values carry their own isTestData too.
+          additionalProperties:
+            type: object
+            properties:
+              dataOrigin: { $ref: '#/components/schemas/DataOrigin' }
+              isTestData: { $ref: '#/components/schemas/IsTestData' }
+            required: [dataOrigin, isTestData]
+        containsTestData: { type: boolean, description: 'True if any binding is fed by test data; the runtime shows a page-level "داده آزمایشی / Test data" banner.' }
+        liveChannel:
+          type: object
+          properties:
+            url: { type: string, examples: ['/api/v1/runtime/ws'] }
+            topics: { type: array, items: { type: string } }
+          required: [url, topics]
+      required: [mode, page, document, components, theme, bindings, bindingOrigins, containsTestData]
+
+    AuditLog:
+      type: object
+      properties:
+        id: { type: integer }
+        occurredAt: { $ref: '#/components/schemas/Timestamp' }
+        actor: { oneOf: [{ $ref: '#/components/schemas/User' }, { type: 'null' }] }
+        action: { type: string, examples: [page.document.saved, page.published, page.rollback, model.run.started] }
+        entityType: { type: string }
+        entityId: { type: string }
+        summary: { type: object }
+        requestId: { type: string }
+      required: [id, occurredAt, action, entityType, entityId]
+    AuditLogList:
+      allOf:
+        - $ref: '#/components/schemas/CursorPage'
+        - type: object
+          properties:
+            items: { type: array, items: { $ref: '#/components/schemas/AuditLog' } }
+          required: [items]

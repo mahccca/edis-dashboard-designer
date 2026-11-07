@@ -1,0 +1,28 @@
+{
+  "$comment": "Maps every example to the schema it must be checked against. For invalid examples, 'expect' states WHY it must fail: either a schema error at a JSON path (so the test fails if the example breaks for an unrelated reason), or a semantic error code from tools/semantic.py.",
+  "valid": [
+    { "file": "valid/page.plant-overview.json", "schema": "page.schema.json" },
+    { "file": "valid/template-part.main-header.json", "schema": "template-part.schema.json" },
+    { "file": "valid/component-definition.kpi-card.json", "schema": "component-definition.schema.json" },
+    { "file": "valid/component-instance.kpi-ac-power.json", "schema": "component-instance.schema.json" },
+    { "file": "valid/object-type.inverter.json", "schema": "industrial-object-type.schema.json" },
+    { "file": "valid/object.inv-01.json", "schema": "industrial-object.schema.json" },
+    { "file": "valid/data-binding.plant-ac-power.json", "schema": "data-binding.schema.json" },
+    { "file": "valid/model.pv-performance-ratio.json", "schema": "model.schema.json" },
+    { "file": "valid/theme.industrial-dark.json", "schema": "theme.schema.json" }
+  ],
+  "invalid": [
+    { "file": "invalid/page.column-outside-row.json", "schema": "page.schema.json", "expect": { "schemaErrorAt": "$.document.root.children[0].children[0].type" } },
+    { "file": "invalid/page.css-injection.json", "schema": "page.schema.json", "expect": { "schemaErrorAt": "$.document.root.children[0].style.background" } },
+    { "file": "invalid/page.leaf-with-children.json", "schema": "page.schema.json", "expect": { "schemaErrorAt": "$.document.root.children[0].children[0].children" } },
+    { "file": "invalid/component-definition.user-code.json", "schema": "component-definition.schema.json", "expect": { "schemaErrorAt": "$.rendererId" } },
+    { "file": "invalid/component-instance.version-range.json", "schema": "component-instance.schema.json", "expect": { "schemaErrorAt": "$.component.version" } },
+    { "file": "invalid/object.secret-in-source.json", "schema": "industrial-object.schema.json", "expect": { "schemaErrorAt": "$.variableSources.ac_power" } },
+    { "file": "invalid/model.eval-injection.json", "schema": "model.schema.json", "expect": { "schemaErrorAt": "$.outputs[0].formula.expression" } },
+    { "file": "invalid/page.duplicate-node-id.json", "schema": "page.schema.json", "expect": { "semanticError": "duplicate_node_id" } },
+    { "file": "invalid/page.slot-in-page.json", "schema": "page.schema.json", "expect": { "semanticError": "slot_outside_template" } },
+    { "file": "invalid/model.function-not-whitelisted.json", "schema": "model.schema.json", "expect": { "semanticError": "unknown_function" } },
+    { "file": "invalid/model.cyclic-dependency.json", "schema": "model.schema.json", "expect": { "semanticError": "dependency_cycle" } },
+    { "file": "invalid/model.undeclared-identifier.json", "schema": "model.schema.json", "expect": { "semanticError": "undeclared_identifier" } }
+  ]
+}

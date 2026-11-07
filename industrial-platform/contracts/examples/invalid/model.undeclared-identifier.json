@@ -1,0 +1,11 @@
+{
+  "id": "01929f3a-6000-7000-8000-0000000000f4",
+  "key": "test.undeclared",
+  "schemaVersion": 1,
+  "version": "1.0.0",
+  "status": "draft",
+  "name": "Formula references an undeclared identifier",
+  "inputs": [{ "key": "energy_ac", "name": "E_ac", "unit": "kWh" }],
+  "outputs": [{ "key": "pr", "name": "PR", "unit": "%", "formula": { "expression": "energy_ac / irradiation * 100" } }],
+  "execution": { "timeoutMs": 1000, "triggers": [{ "kind": "manual" }] }
+}
