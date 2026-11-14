@@ -6,6 +6,21 @@ import { themeVariables } from "../style-engine";
 import { BOX_PART, pagePartBag, resolvePartStyle, type AppearanceMode } from "../style-engine/parts";
 import styles from "./DocumentRenderer.module.css";
 
+export interface CanvasDragState {
+  dragId: string | null;
+  dropTarget: {
+    parentId: string;
+    index: number;
+    hintId: string;
+    place: "before" | "after" | "inside";
+  } | null;
+  onDragStart: (nodeId: string, e: React.DragEvent) => void;
+  onDragOver: (node: DocNode, parent: DocNode | null, e: React.DragEvent) => void;
+  onDragLeave: (node: DocNode, e: React.DragEvent) => void;
+  onDrop: (e: React.DragEvent) => void;
+  onDragEnd: (e: React.DragEvent) => void;
+}
+
 export interface RenderContext {
   components: ComponentSpec[];
   values: Record<string, BindingValue | undefined>;
@@ -20,6 +35,10 @@ export interface RenderContext {
   selection?: { selectedId: string | null; onSelect: (id: string) => void };
   /** Studio pencil tool: click a region to edit its style in a floating popover. */
   styleEdit?: StyleEditHooks;
+  /** Client-side SPA navigation handler to transition pages without full-page reloads */
+  onNavigate?: (path: string) => void;
+  /** Studio interactive Canvas Drag & Drop hook */
+  canvasDrag?: CanvasDragState;
 }
 
 function specFor(ctx: RenderContext, node: DocNode): ComponentSpec | undefined {
@@ -44,6 +63,23 @@ function renderComponent(node: DocNode, ctx: RenderContext): ReactNode {
     <Renderer node={node} spec={spec} inputs={inputs} testData={testData} locale={ctx.locale}
               appearanceMode={appearanceMode} pagePartBag={ctx.pagePartBag} styleEdit={ctx.styleEdit} />
   );
+}
+
+export function resolveLinkHref(link: string): string {
+  if (!link) return "#";
+  if (/^[a-zA-Z][a-zA-Z\d+\-.]*:/.test(link)) {
+    return link;
+  }
+  const currentSearch = typeof window !== "undefined" ? window.location.search : "";
+  const params = new URLSearchParams(currentSearch);
+  const site = params.get("site");
+  const normalizedPath = link.startsWith("/") ? link : `/${link}`;
+  if (site) {
+    const isRuntimeHtml = typeof window !== "undefined" && window.location.pathname.endsWith("runtime.html");
+    const basePath = isRuntimeHtml ? "runtime.html" : window.location.pathname;
+    return `${basePath}?site=${encodeURIComponent(site)}&path=${encodeURIComponent(normalizedPath)}`;
+  }
+  return normalizedPath;
 }
 
 function boundText(node: DocNode, ctx: RenderContext): string {
@@ -142,7 +178,16 @@ function content(node: DocNode, ctx: RenderContext, siblings: number): ReactNode
     );
   }
 
-  const kids = (node.children ?? []).map((c) => <NodeView key={c.id} node={c} ctx={ctx} siblings={node.children?.length ?? 1} />);
+  const kids = (node.children ?? []).map((c) => (
+    <NodeView key={c.id} node={c} parent={node} ctx={ctx} siblings={node.children?.length ?? 1} />
+  ));
+  const emptyHint =
+    ctx.selection && (!node.children || node.children.length === 0) ? (
+      <div className={styles.emptyContainerDropHint} data-empty-hint={node.id}>
+        <span style={{ fontSize: "1rem" }}>➕</span>
+        <span>این بخش خالی است — المان‌ها را با ماوس به اینجا بکشید</span>
+      </div>
+    ) : null;
   const mode = ctx.styleEdit?.appearanceMode ?? ctx.appearanceMode ?? "night";
   if (node.type === "component") {
     // Outer spacing (padding/margin/size) for widgets — keep renderer internals unchanged.
@@ -163,26 +208,143 @@ function content(node: DocNode, ctx: RenderContext, siblings: number): ReactNode
 
   switch (node.type) {
     case "root":
-      return <div className={`${styles.root} ${styleable}`} style={style}>{kids}</div>;
-    case "section":
-      return <section className={`${styles.section} ${styleable}`} style={style}>{kids}</section>;
+      return <div className={`${styles.root} ${styleable}`} style={style}>{kids.length > 0 ? kids : emptyHint}</div>;
+    case "section": {
+      const isHeader = Boolean(node.props?.fixedHeader) || Boolean(node.props?.isSiteHeader);
+      return (
+        <section
+          className={`${styles.section} ${isHeader ? styles.fixedHeader : ""} ${node.props?.isSiteHeader ? styles.siteHeaderSection : ""} ${styleable}`}
+          style={style}
+          data-node-role={isHeader ? "header" : undefined}
+          data-site-header={node.props?.isSiteHeader ? "true" : undefined}
+        >
+          {kids.length > 0 ? kids : emptyHint}
+        </section>
+      );
+    }
     case "row":
-      return <div className={`${styles.row} ${styleable}`} style={style}>{kids}</div>;
+      return <div className={`${styles.row} ${styleable}`} style={style}>{kids.length > 0 ? kids : emptyHint}</div>;
     case "column": {
       const span = Math.max(1, Math.floor(12 / Math.max(1, siblings)));
-      return <div className={`${styles.column} ${styleable}`} style={{ gridColumn: `span ${span}`, ...style }}>{kids}</div>;
+      return (
+        <div className={`${styles.column} ${styleable}`} style={{ gridColumn: `span ${span}`, ...style }}>
+          {kids.length > 0 ? kids : emptyHint}
+        </div>
+      );
     }
     case "container":
     case "stack":
     case "grid":
-      return <div className={`${styles[node.type]} ${styleable}`} style={style}>{kids}</div>;
+      return <div className={`${styles[node.type]} ${styleable}`} style={style}>{kids.length > 0 ? kids : emptyHint}</div>;
     case "heading": {
       const level = Math.min(6, Math.max(1, Number(node.props?.level ?? 2)));
       const Tag = `h${level}` as "h1";
-      return <Tag className={`${styles.heading} ${styleable}`} style={style}>{boundText(node, ctx)}</Tag>;
+      const txt = boundText(node, ctx);
+      const link = typeof node.props?.link === "string" ? node.props.link.trim() : "";
+      const isButton = Boolean(node.props?.asButton);
+      const variant = typeof node.props?.buttonVariant === "string" ? node.props.buttonVariant : "primary";
+      const target = typeof node.props?.linkTarget === "string" ? node.props.linkTarget : "_self";
+
+      const btnVariantClass = styles[`btn_${variant}`] ?? styles.btn_primary;
+      const elementClass = isButton
+        ? `${styles.buttonElement} ${btnVariantClass} ${styleable}`
+        : `${styles.heading} ${styleable}`;
+
+      if (link && !ctx.selection) {
+        const href = resolveLinkHref(link);
+        const isExternal = /^[a-zA-Z][a-zA-Z\d+\-.]*:/.test(link);
+        const handleClick = (e: MouseEvent<HTMLAnchorElement>) => {
+          if (!isExternal && target !== "_blank" && ctx.onNavigate) {
+            e.preventDefault();
+            let targetPath = link;
+            if (targetPath.includes("path=")) {
+              try {
+                const u = new URL(targetPath, "http://localhost");
+                targetPath = u.searchParams.get("path") || targetPath;
+              } catch {
+                /* ignore */
+              }
+            }
+            ctx.onNavigate(targetPath);
+          }
+        };
+        return (
+          <a
+            href={href}
+            target={target}
+            rel={isExternal ? "noopener noreferrer" : undefined}
+            className={elementClass}
+            style={style}
+            onClick={handleClick}
+          >
+            {txt}
+          </a>
+        );
+      }
+
+      return (
+        <Tag className={elementClass} style={style}>
+          {txt}
+          {link && ctx.selection && (
+            <span className={styles.linkBadge} title={`پیوند: ${link}`}>🔗</span>
+          )}
+        </Tag>
+      );
     }
-    case "text":
-      return <p className={`${styles.text} ${styleable}`} style={style}>{boundText(node, ctx)}</p>;
+    case "text": {
+      const txt = boundText(node, ctx);
+      const link = typeof node.props?.link === "string" ? node.props.link.trim() : "";
+      const isButton = Boolean(node.props?.asButton);
+      const variant = typeof node.props?.buttonVariant === "string" ? node.props.buttonVariant : "primary";
+      const target = typeof node.props?.linkTarget === "string" ? node.props.linkTarget : "_self";
+
+      const btnVariantClass = styles[`btn_${variant}`] ?? styles.btn_primary;
+      const elementClass = isButton
+        ? `${styles.buttonElement} ${btnVariantClass} ${styleable}`
+        : `${styles.text} ${styleable}`;
+
+      if (link && !ctx.selection) {
+        const href = resolveLinkHref(link);
+        const isExternal = /^[a-zA-Z][a-zA-Z\d+\-.]*:/.test(link);
+        const handleClick = (e: MouseEvent<HTMLAnchorElement>) => {
+          if (!isExternal && target !== "_blank" && ctx.onNavigate) {
+            e.preventDefault();
+            let targetPath = link;
+            if (targetPath.includes("path=")) {
+              try {
+                const u = new URL(targetPath, "http://localhost");
+                targetPath = u.searchParams.get("path") || targetPath;
+              } catch {
+                /* ignore */
+              }
+            }
+            ctx.onNavigate(targetPath);
+          }
+        };
+        return (
+          <a
+            href={href}
+            target={target}
+            rel={isExternal ? "noopener noreferrer" : undefined}
+            className={elementClass}
+            style={style}
+            onClick={handleClick}
+          >
+            {txt}
+          </a>
+        );
+      }
+
+      const Tag = isButton ? "span" : "p";
+      return (
+        <Tag className={elementClass} style={style}>
+          {txt}
+          {link && ctx.selection && (
+            <span className={styles.linkBadge} title={`پیوند: ${link}`}>🔗</span>
+          )}
+        </Tag>
+      );
+    }
     case "spacer":
       return <div className={styleable} style={{ height: 24, ...style }} />;
     case "divider":
@@ -192,14 +354,46 @@ function content(node: DocNode, ctx: RenderContext, siblings: number): ReactNode
   }
 }
 
-function NodeView({ node, ctx, siblings }: { node: DocNode; ctx: RenderContext; siblings: number }) {
+export function NodeView({
+  node,
+  parent = null,
+  ctx,
+  siblings = 1,
+}: {
+  node: DocNode;
+  parent?: DocNode | null;
+  ctx: RenderContext;
+  siblings?: number;
+}) {
   const inner = content(node, ctx, siblings);
-  if (!ctx.selection || node.type === "root") return <>{inner}</>;
+  if (!ctx.selection) return <>{inner}</>;
   const { selectedId, onSelect } = ctx.selection;
   const styleEdit = ctx.styleEdit;
+  const canvasDrag = ctx.canvasDrag;
+
+  const isSelected = !styleEdit?.active && selectedId === node.id;
+  const isDragging = canvasDrag?.dragId === node.id;
+  const isDropHint = canvasDrag?.dropTarget?.hintId === node.id;
+  const dropPlace = isDropHint ? canvasDrag?.dropTarget?.place : null;
+
+  const dropClass =
+    dropPlace === "before"
+      ? styles.canvasDropBefore
+      : dropPlace === "after"
+      ? styles.canvasDropAfter
+      : dropPlace === "inside"
+      ? styles.canvasDropInside
+      : "";
+
+  const isDraggable = node.type !== "root" && !styleEdit?.active;
 
   const onClick = (e: MouseEvent) => {
     e.stopPropagation();
+    if ((e.ctrlKey || e.metaKey) && typeof node.props?.link === "string" && node.props.link.trim()) {
+      const href = resolveLinkHref(node.props.link.trim());
+      window.open(href, "_blank");
+      return;
+    }
     if (styleEdit?.active) {
       // Components handle their own parts; layout/text nodes use the "box" part.
       if (node.type === "component") return;
@@ -209,13 +403,79 @@ function NodeView({ node, ctx, siblings }: { node: DocNode; ctx: RenderContext; 
     onSelect(node.id);
   };
 
+  const onDragStart = (e: React.DragEvent) => {
+    if (!isDraggable || !canvasDrag) return;
+    e.stopPropagation();
+    e.dataTransfer.effectAllowed = "move";
+    e.dataTransfer.setData("text/plain", node.id);
+    canvasDrag.onDragStart(node.id, e);
+  };
+
+  const onDragOver = (e: React.DragEvent) => {
+    if (!canvasDrag || !canvasDrag.dragId) return;
+    canvasDrag.onDragOver(node, parent, e);
+  };
+
+  const onDragLeave = (e: React.DragEvent) => {
+    if (!canvasDrag || !canvasDrag.dragId) return;
+    canvasDrag.onDragLeave(node, e);
+  };
+
+  const onDrop = (e: React.DragEvent) => {
+    if (!canvasDrag || !canvasDrag.dragId) return;
+    canvasDrag.onDrop(e);
+  };
+
+  const onDragEnd = (e: React.DragEvent) => {
+    if (!canvasDrag) return;
+    canvasDrag.onDragEnd(e);
+  };
+
+  if (node.type === "root") {
+    return (
+      <div
+        className={`${styles.rootWrapper} ${!styleEdit?.active && selectedId === "root" ? styles.selected : ""} ${
+          styleEdit?.active ? styles.styleMode : ""
+        } ${dropClass}`}
+        data-node-id="root"
+        onClick={onClick}
+        onDragOver={onDragOver}
+        onDragLeave={onDragLeave}
+        onDrop={onDrop}
+      >
+        {inner}
+      </div>
+    );
+  }
+
   return (
     <div
-      className={`${styles.selectable} ${!styleEdit?.active && selectedId === node.id ? styles.selected : ""} ${styleEdit?.active ? styles.styleMode : ""}`}
+      className={`${styles.selectable} ${isSelected ? styles.selected : ""} ${
+        styleEdit?.active ? styles.styleMode : ""
+      } ${isDragging ? styles.nodeDragging : ""} ${dropClass}`}
       data-node-id={node.id}
+      draggable={isDraggable}
       onClick={onClick}
+      onDragStart={onDragStart}
+      onDragOver={onDragOver}
+      onDragLeave={onDragLeave}
+      onDrop={onDrop}
+      onDragEnd={onDragEnd}
       style={node.type === "column" ? { display: "contents" } : undefined}
     >
+      {/* Floating Canvas Drag Handle & Badge when selected */}
+      {isSelected && isDraggable && (
+        <div
+          className={styles.canvasDragHandleBadge}
+          title="برای جابجایی با ماوس بکشید (Drag to move)"
+          draggable
+          onDragStart={onDragStart}
+          onDragEnd={onDragEnd}
+        >
+          <span className={styles.canvasDragHandleIcon}>⠿</span>
+          <span className={styles.canvasDragHandleText}>جابجایی</span>
+        </div>
+      )}
       {inner}
     </div>
   );
@@ -230,11 +490,28 @@ export function DocumentRenderer({ document, ctx }: { document: DocumentContent;
   };
   return (
     <div dir={dir} className={`${styles.document}${ctx.styleEdit?.active ? ` ${styles.styleModeCanvas}` : ""}`}>
-      <NodeView node={document.root} ctx={enriched} siblings={1} />
+      <NodeView node={document.root} parent={null} ctx={enriched} siblings={1} />
     </div>
   );
 }
 
-export function ThemeScope({ tokens, children }: { tokens: Record<string, unknown>; children: ReactNode }) {
-  return <div className={styles.theme} style={themeVariables(tokens) as CSSProperties}>{children}</div>;
+export function ThemeScope({
+  tokens,
+  className,
+  style,
+  children,
+}: {
+  tokens: Record<string, unknown>;
+  className?: string;
+  style?: CSSProperties;
+  children: ReactNode;
+}) {
+  return (
+    <div
+      className={`${styles.theme}${className ? ` ${className}` : ""}`}
+      style={{ ...themeVariables(tokens), ...(style ?? {}) } as CSSProperties}
+    >
+      {children}
+    </div>
+  );
 }

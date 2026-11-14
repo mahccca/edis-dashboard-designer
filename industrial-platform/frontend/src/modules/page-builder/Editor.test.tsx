@@ -132,4 +132,34 @@ describe("editor-lite: build, bind, save, publish without writing code (AT-2 UI 
     expect(alert.textContent).toContain('"rev-7"');
     expect((screen.getByRole("button", { name: /^ذخیره$/ }) as HTMLButtonElement).disabled).toBe(false);
   });
+
+  it("allows dragging and dropping elements directly on the canvas", async () => {
+    fakeApi();
+    const { container } = render(<Editor project={project} page={page} onBack={() => {}} />);
+    await screen.findByRole("button", { name: "root" });
+
+    // Add first section
+    click(/\+ section/);
+    await screen.findByRole("button", { name: "section" });
+
+    // Add second section
+    click(/\+ section/);
+    const sections = await screen.findAllByRole("button", { name: "section" });
+    expect(sections.length).toBe(2);
+
+    // Canvas elements have data-node-id and are draggable
+    const firstCanvasNode = container.querySelector('.selectable[draggable="true"]') as HTMLElement;
+    expect(firstCanvasNode).toBeTruthy();
+    expect(firstCanvasNode.getAttribute("draggable")).toBe("true");
+
+    // Test drag start on canvas element
+    const dt = {
+      setData: vi.fn(),
+      getData: vi.fn(),
+      effectAllowed: "move",
+      dropEffect: "move",
+    };
+    fireEvent.dragStart(firstCanvasNode, { dataTransfer: dt });
+    expect(dt.setData).toHaveBeenCalled();
+  });
 });

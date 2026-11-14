@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { http } from "../../shared/api/http";
 import type {
-  BindingValue, ComponentSpec, ComponentSummary, DataBinding, DataSource, IndustrialObject, ObjectType,
+  BindingValue, ComponentSpec, ComponentSummary, DataBinding, DataSource, IndustrialObject, ObjectType, PageSummary,
 } from "../../shared/api/types";
 
 export interface EditorCatalog {
@@ -10,9 +10,10 @@ export interface EditorCatalog {
   objects: IndustrialObject[];
   objectTypes: ObjectType[];
   dataSources: DataSource[];
+  pages: PageSummary[];
 }
 
-const EMPTY: EditorCatalog = { components: [], bindings: [], objects: [], objectTypes: [], dataSources: [] };
+const EMPTY: EditorCatalog = { components: [], bindings: [], objects: [], objectTypes: [], dataSources: [], pages: [] };
 
 async function list<T>(path: string): Promise<T[]> {
   try {
@@ -27,18 +28,19 @@ export function useCatalog(projectId: string): [EditorCatalog, () => Promise<voi
   const [catalog, setCatalog] = useState<EditorCatalog>(EMPTY);
 
   const reload = useCallback(async () => {
-    const [summaries, bindings, objects, objectTypes, dataSources] = await Promise.all([
+    const [summaries, bindings, objects, objectTypes, dataSources, pages] = await Promise.all([
       list<ComponentSummary>(`/projects/${projectId}/components`),
       list<DataBinding>(`/projects/${projectId}/data-bindings`),
       list<IndustrialObject>(`/projects/${projectId}/objects`),
       list<ObjectType>(`/projects/${projectId}/object-types`),
       list<DataSource>(`/projects/${projectId}/data-sources`),
+      list<PageSummary>(`/projects/${projectId}/pages`),
     ]);
     const components = await Promise.all(
       summaries.filter((s) => s.latestPublishedVersion)
         .map((s) => http.get<ComponentSpec>(`/components/${s.id}/versions/${s.latestPublishedVersion}`).then((r) => r.data)),
     );
-    setCatalog({ components, bindings, objects, objectTypes, dataSources });
+    setCatalog({ components, bindings, objects, objectTypes, dataSources, pages });
   }, [projectId]);
 
   useEffect(() => {

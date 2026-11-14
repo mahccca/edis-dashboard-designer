@@ -59,7 +59,7 @@ function ringToPath(ring: number[][], bbox: BBox, width: number, height: number,
   const parts: string[] = [];
   for (let i = 0; i < ring.length; i++) {
     const [lon, lat] = ring[i]!;
-    const [x, y] = projectPoint(lon, lat, bbox, width, height, pad);
+    const [x, y] = projectPoint(lon!, lat!, bbox, width, height, pad);
     parts.push(`${i === 0 ? "M" : "L"}${x.toFixed(1)} ${y.toFixed(1)}`);
   }
   parts.push("Z");
@@ -84,7 +84,7 @@ function geometryToPath(geom: GeoJsonGeometry, bbox: BBox, width: number, height
 function featureCentroid(f: GeoJsonFeature, bbox: BBox, width: number, height: number, pad: number): [number, number] {
   let sx = 0, sy = 0, n = 0;
   walkCoords(f.geometry, (lon, lat) => {
-    const [x, y] = projectPoint(lon, lat, bbox, width, height, pad);
+    const [x, y] = projectPoint(lon!, lat!, bbox, width, height, pad);
     sx += x; sy += y; n += 1;
   });
   if (!n) return [width / 2, height / 2];

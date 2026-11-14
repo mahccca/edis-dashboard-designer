@@ -6,6 +6,9 @@ import { Gauge } from "../renderers/Gauge";
 import { ImageWidget } from "../renderers/ImageWidget";
 import { KpiCard } from "../renderers/KpiCard";
 import { MapWidget } from "../renderers/MapWidget";
+import { IndustrialPanelWidget } from "../renderers/IndustrialPanelWidget";
+import { SvgCadWidget } from "../renderers/SvgCadWidget";
+import { Model3dWidget } from "../renderers/Model3dWidget";
 import type { AppearanceMode, StylePartDef } from "../style-engine/parts";
 
 /** Studio-only: pencil tool picks a named part of a component for the floating style editor. */
@@ -42,6 +45,9 @@ const REGISTRY = new Map<string, ComponentType<RendererProps>>([
   ["builtin.image@1", ImageWidget],
   ["builtin.chart@1", Chart],
   ["builtin.map@1", MapWidget],
+  ["builtin.industrial-panel@1", IndustrialPanelWidget],
+  ["builtin.svg-cad@1", SvgCadWidget],
+  ["builtin.model-3d@1", Model3dWidget],
 ]);
 
 export function getRenderer(rendererId: string): ComponentType<RendererProps> | undefined {

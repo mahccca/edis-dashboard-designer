@@ -162,6 +162,229 @@ export function createNode(type: NodeType, taken: Set<string>, spec?: ComponentS
 }
 
 /** Maps a server error pointer ("/content/root/children/0/props/x") to the deepest node it points into. */
+
+export function createButtonNode(taken: Set<string>, text = "دکمه جدید", link = "/"): DocNode {
+  const id = newId("btn", taken);
+  return {
+    id,
+    type: "text",
+    props: {
+      text: { fa: text, en: "Button" },
+      asButton: true,
+      buttonVariant: "primary",
+      link,
+      linkTarget: "_self",
+    },
+  };
+}
+
+export function createHeaderSection(taken: Set<string>, title = "پلتفرم صنعتی"): DocNode {
+  const secId = newId("header", taken);
+  taken.add(secId);
+  const rowId = newId("row", taken);
+  taken.add(rowId);
+  const col1Id = newId("column", taken);
+  taken.add(col1Id);
+  const col2Id = newId("column", taken);
+  taken.add(col2Id);
+  const titleId = newId("title", taken);
+  taken.add(titleId);
+  const btn1Id = newId("btn", taken);
+  taken.add(btn1Id);
+  const btn2Id = newId("btn", taken);
+  taken.add(btn2Id);
+
+  return {
+    id: secId,
+    type: "section",
+    props: { fixedHeader: true, isSiteHeader: true },
+    children: [
+      {
+        id: rowId,
+        type: "row",
+        children: [
+          {
+            id: col1Id,
+            type: "column",
+            style: { columnSpan: 6, align: "center" },
+            children: [
+              {
+                id: titleId,
+                type: "heading",
+                props: { text: { fa: title, en: "Platform Header" }, level: 3 },
+              },
+            ],
+          },
+          {
+            id: col2Id,
+            type: "column",
+            style: { columnSpan: 6, align: "center", justify: "flex-end", direction: "row", gap: 10 },
+            children: [
+              {
+                id: btn1Id,
+                type: "text",
+                props: {
+                  text: { fa: "نمای اصلی", en: "Home" },
+                  asButton: true,
+                  buttonVariant: "secondary",
+                  link: "/",
+                },
+              },
+              {
+                id: btn2Id,
+                type: "text",
+                props: {
+                  text: { fa: "پایش زنده", en: "Monitoring" },
+                  asButton: true,
+                  buttonVariant: "primary",
+                  link: "/monitoring",
+                  linkTarget: "_blank",
+                },
+              },
+            ],
+          },
+        ],
+      },
+    ],
+  };
+}
+
+export function createMonitoringHeaderSection(
+  taken: Set<string>,
+  kpiSpec?: ComponentSpec,
+  title = "پلتفرم صنعتی"
+): DocNode {
+  const secId = newId("sec-header", taken);
+  taken.add(secId);
+  const rowId = newId("row-header", taken);
+  taken.add(rowId);
+  const colBrandId = newId("col-brand", taken);
+  taken.add(colBrandId);
+  const colKpiId = newId("col-kpi", taken);
+  taken.add(colKpiId);
+  const colNavId = newId("col-nav", taken);
+  taken.add(colNavId);
+
+  const titleId = newId("heading", taken);
+  taken.add(titleId);
+  const subtitleId = newId("text", taken);
+  taken.add(subtitleId);
+  const btnHomeId = newId("btn-home", taken);
+  taken.add(btnHomeId);
+  const btnAlertsId = newId("btn-alerts", taken);
+  taken.add(btnAlertsId);
+
+  let kpiChild: DocNode;
+  if (kpiSpec) {
+    const kpiNodeId = newId("kpi", taken);
+    taken.add(kpiNodeId);
+    kpiChild = {
+      id: kpiNodeId,
+      type: "component",
+      component: {
+        definitionId: kpiSpec.id,
+        definitionKey: kpiSpec.key,
+        version: kpiSpec.version,
+      },
+      props: {
+        title: { fa: "توان اکتیو", en: "Active Power" },
+        value: "312.4",
+        unit: "kW",
+        status: "normal",
+      },
+    };
+  } else {
+    const kpiTextId = newId("kpi-badge", taken);
+    taken.add(kpiTextId);
+    kpiChild = {
+      id: kpiTextId,
+      type: "text",
+      props: {
+        text: { fa: "⚡ توان کل: 312.4 kW  |  ⏱ فشار: 6.2 Bar", en: "⚡ Active Power: 312.4 kW | ⏱ Pressure: 6.2 Bar" },
+        asButton: false,
+      },
+      style: {
+        fontSize: "0.85rem",
+        color: "#38bdf8",
+        padding: "6px 14px",
+        background: "rgba(56, 189, 248, 0.1)",
+        borderRadius: "8px",
+        border: "1px solid rgba(56, 189, 248, 0.3)",
+      },
+    };
+  }
+
+  return {
+    id: secId,
+    type: "section",
+    props: { fixedHeader: true, isSiteHeader: true },
+    style: {
+      paddingTop: "10px",
+      paddingBottom: "10px",
+      borderBottom: "1px solid rgba(255, 255, 255, 0.1)",
+    },
+    children: [
+      {
+        id: rowId,
+        type: "row",
+        children: [
+          {
+            id: colBrandId,
+            type: "column",
+            style: { columnSpan: 3, align: "center", direction: "column", gap: 2 },
+            children: [
+              {
+                id: titleId,
+                type: "heading",
+                props: { text: { fa: `⚡ ${title}`, en: `⚡ ${title}` }, level: 3 },
+              },
+              {
+                id: subtitleId,
+                type: "text",
+                props: { text: { fa: "سامانه تله‌متری و پایش آنلاین", en: "Telemetry & SCADA" } },
+                style: { fontSize: "0.75rem", opacity: 0.7 },
+              },
+            ],
+          },
+          {
+            id: colKpiId,
+            type: "column",
+            style: { columnSpan: 5, align: "center", justify: "center" },
+            children: [kpiChild],
+          },
+          {
+            id: colNavId,
+            type: "column",
+            style: { columnSpan: 4, align: "center", justify: "flex-end", direction: "row", gap: 10 },
+            children: [
+              {
+                id: btnHomeId,
+                type: "text",
+                props: {
+                  text: { fa: "نمای اصلی", en: "Home" },
+                  asButton: true,
+                  buttonVariant: "secondary",
+                  link: "/",
+                },
+              },
+              {
+                id: btnAlertsId,
+                type: "text",
+                props: {
+                  text: { fa: "هشدارها", en: "Alerts" },
+                  asButton: true,
+                  buttonVariant: "primary",
+                  link: "/alarms",
+                },
+              },
+            ],
+          },
+        ],
+      },
+    ],
+  };
+}
+
 export function nodeIdForPointer(doc: DocumentContent, pointer: string): string | null {
   const parts = pointer.split("/").slice(1).map((p) => p.replace(/~1/g, "/").replace(/~0/g, "~"));
   if (parts[0] === "content" || parts[0] === "document") parts.shift();

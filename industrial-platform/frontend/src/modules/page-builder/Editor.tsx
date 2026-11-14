@@ -2,18 +2,28 @@ import { useCallback, useEffect, useMemo, useState, type CSSProperties } from "r
 import { ApiError, http } from "../../shared/api/http";
 import type { ComponentSpec, DocNode, DocumentContent, NodeType, PageSummary, Project, ProblemError, PublishedVersion, StyleValue } from "../../shared/api/types";
 import {
-  ConstraintError, collectIds, createNode, findNode, history, insertChild, moveNode, moveNodeTo, nodeIdForPointer, removeNode, updateNode, walk,
+  ConstraintError, collectIds, createNode, findNode, history, insertChild, isLeaf, moveNode, moveNodeTo, moveViolation, nodeIdForPointer, removeNode, updateNode, walk,
   type History,
 } from "../../shared/document-engine";
 import { localize } from "../../shared/i18n";
 import { DocumentRenderer, ThemeScope } from "../../shared/rendering/DocumentRenderer";
 import { themeTokensFor } from "../../shared/appearance/tokens";
+import {
+  loadSiteLayout,
+  projectThemeToCssVars,
+  projectThemeToTokens,
+  setProjectDataMode,
+  SiteHeader,
+  SiteFooter,
+  type ProjectDataMode,
+} from "../../shared/site-layout";
 import { patchPagePartStyle, patchPartStyle, type AppearanceMode, type StylePartDef } from "../../shared/style-engine/parts";
 import { TestDataBanner } from "../../shared/ui/TestDataBadge";
 import ui from "../../shared/ui/controls.module.css";
 import styles from "./Editor.module.css";
 import { Inspector } from "./Inspector";
 import { LayersPanel } from "./LayersPanel";
+import { SiteLayoutStudio } from "../platform/SiteLayoutStudio";
 import { ResizeHandle, usePanelWidth } from "./ResizeHandle";
 import { StylePopover, type StyleTarget } from "./StylePopover";
 import { VersionsPanel } from "./VersionsPanel";
@@ -51,7 +61,28 @@ export function Editor({ project, page, onBack }: { project: Project; page: Page
   const [status, setStatus] = useState<Status>({ kind: "idle" });
   const [refreshKey, setRefreshKey] = useState(0);
   const [catalog, reloadCatalog] = useCatalog(project.id);
+  const [showSiteLayout, setShowSiteLayout] = useState(false);
+  const [canvasDragId, setCanvasDragId] = useState<string | null>(null);
+  const [canvasDropTarget, setCanvasDropTarget] = useState<{
+    parentId: string;
+    index: number;
+    hintId: string;
+    place: "before" | "after" | "inside";
+  } | null>(null);
   const layersSize = usePanelWidth("ip.studio.layersWidth", 280, 200, 640);
+
+  const [siteLayoutKey, setSiteLayoutKey] = useState(0);
+
+  useEffect(() => {
+    const handleLayoutChange = () => setSiteLayoutKey((k) => k + 1);
+    window.addEventListener("ip-site-layout-change", handleLayoutChange);
+    return () => window.removeEventListener("ip-site-layout-change", handleLayoutChange);
+  }, []);
+
+  const siteLayout = useMemo(
+    () => loadSiteLayout(project.id, project.name, project.slug),
+    [project.id, project.name, project.slug, siteLayoutKey]
+  );
 
   const load = useCallback(async () => {
     const res = await http.get<{ document: DocumentContent }>(`/pages/${page.id}`);
@@ -59,9 +90,16 @@ export function Editor({ project, page, onBack }: { project: Project; page: Page
     setSaved(res.data.document);
     setEtag(res.etag);
     const scheme = res.data.document.settings?.colorScheme;
-    if (scheme === "day" || scheme === "night") setAppearanceMode(scheme);
+    if (scheme === "day" || scheme === "night") {
+      setAppearanceMode(scheme);
+    } else {
+      const def = siteLayout.theme.defaultAppearance;
+      if (def === "day" || def === "night") {
+        setAppearanceMode(def);
+      }
+    }
     setRefreshKey((k) => k + 1);
-  }, [page.id]);
+  }, [page.id, siteLayout.theme.defaultAppearance]);
 
   useEffect(() => {
     void load();
@@ -74,7 +112,19 @@ export function Editor({ project, page, onBack }: { project: Project; page: Page
     [present],
   );
   const values = useBindingValues(bindingIds);
-  const anyTestData = Object.values(values).some((v) => v.isTestData) || catalog.dataSources.some((d) => d.isTestData);
+  const currentDataMode = siteLayout.dataEnvironment ?? "auto";
+  const anyTestData =
+    currentDataMode === "test"
+      ? true
+      : currentDataMode === "live"
+      ? false
+      : Object.values(values).some((v) => v.isTestData) || catalog.dataSources.some((d) => d.isTestData);
+
+  const handleToggleDataMode = () => {
+    const nextMode: ProjectDataMode = currentDataMode === "test" ? "live" : currentDataMode === "live" ? "auto" : "test";
+    setProjectDataMode(project.id, nextMode, project.slug);
+    setSiteLayoutKey((k) => k + 1);
+  };
   const invalidErrors = status.kind === "invalid" ? status.errors : [];
   const errorIds = useMemo(
     () => new Set(present ? invalidErrors.map((e) => nodeIdForPointer(present, e.pointer)).filter((x): x is string => !!x) : []),
@@ -85,6 +135,29 @@ export function Editor({ project, page, onBack }: { project: Project; page: Page
     setSelectedId(nodeId);
     setStyleTarget({ nodeId, part, parts, anchor });
   }, []);
+
+  const projectTokens = useMemo(
+    () => projectThemeToTokens(siteLayout.theme, appearanceMode),
+    [siteLayout.theme, appearanceMode]
+  );
+  const projectCssVars = useMemo(
+    () => projectThemeToCssVars(siteLayout.theme, appearanceMode),
+    [siteLayout.theme, appearanceMode]
+  );
+  const editorTokens = useMemo(() => {
+    const schemeTokens = themeTokensFor(appearanceMode);
+    return {
+      ...schemeTokens,
+      ...projectTokens,
+      color: {
+        ...((schemeTokens.color as Record<string, unknown>) ?? {}),
+        ...((projectTokens.color as Record<string, unknown>) ?? {}),
+      },
+      radius: {
+        ...((projectTokens.radius as Record<string, unknown>) ?? {}),
+      },
+    };
+  }, [appearanceMode, projectTokens]);
 
   if (!doc || !present) return <div className={ui.muted} style={{ padding: 32 }}>…</div>;
 
@@ -132,9 +205,9 @@ export function Editor({ project, page, onBack }: { project: Project; page: Page
     });
   };
 
-  const add = (parentId: string, type: NodeType, spec?: ComponentSpec) => {
+  const add = (parentId: string, type: NodeType, spec?: ComponentSpec, customNode?: DocNode) => {
     try {
-      const node = createNode(type, collectIds(present), spec);
+      const node = customNode ?? createNode(type, collectIds(present), spec);
       commit(insertChild(present, parentId, node, spec));
       setSelectedId(node.id);
     } catch (e) {
@@ -149,6 +222,91 @@ export function Editor({ project, page, onBack }: { project: Project; page: Page
     } catch (e) {
       setStatus({ kind: "error", text: e instanceof ConstraintError ? STRUCTURE_ERROR : String(e) });
     }
+  };
+
+  const onCanvasDragStart = (nodeId: string, e: React.DragEvent) => {
+    setCanvasDragId(nodeId);
+    setSelectedId(nodeId);
+    e.dataTransfer.effectAllowed = "move";
+    e.dataTransfer.setData("text/plain", nodeId);
+  };
+
+  const onCanvasDragOver = (node: DocNode, parent: DocNode | null, e: React.DragEvent) => {
+    if (!canvasDragId || canvasDragId === node.id || !present) return;
+
+    const dragged = findNode(present, canvasDragId)?.node;
+    if (!dragged) return;
+
+    const spec = specFor(dragged);
+    const allowed = (parentId: string) => moveViolation(present, canvasDragId, parentId, spec) === null;
+
+    const isContainer = !isLeaf(node.type);
+    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+    const ratioY = rect.height ? (e.clientY - rect.top) / rect.height : 0.5;
+    const ratioX = rect.width ? (e.clientX - rect.left) / rect.width : 0.5;
+
+    const isRow = parent?.type === "row" || parent?.type === "grid";
+    const edge = isContainer ? 0.28 : 0.5;
+
+    let target: { parentId: string; index: number; hintId: string; place: "before" | "after" | "inside" } | null = null;
+
+    if (isContainer && (!node.children || node.children.length === 0) && allowed(node.id)) {
+      target = { parentId: node.id, index: 0, hintId: node.id, place: "inside" };
+    } else if (isRow && parent && allowed(parent.id)) {
+      const isRtl = present.settings?.direction !== "ltr";
+      const horizRatio = isRtl ? 1 - ratioX : ratioX;
+      const siblings = (parent.children ?? []).filter((c) => c.id !== canvasDragId);
+      const at = siblings.findIndex((c) => c.id === node.id);
+      const place = horizRatio < 0.5 ? "before" : "after";
+      target = { parentId: parent.id, index: place === "before" ? at : at + 1, hintId: node.id, place };
+    } else if (parent && (ratioY < edge || ratioY > 1 - edge) && allowed(parent.id)) {
+      const siblings = (parent.children ?? []).filter((c) => c.id !== canvasDragId);
+      const at = siblings.findIndex((c) => c.id === node.id);
+      const place = ratioY < edge ? "before" : "after";
+      target = { parentId: parent.id, index: place === "before" ? at : at + 1, hintId: node.id, place };
+    } else if (isContainer && allowed(node.id)) {
+      const count = (node.children ?? []).filter((c) => c.id !== canvasDragId).length;
+      target = { parentId: node.id, index: count, hintId: node.id, place: "inside" };
+    } else if (parent && allowed(parent.id)) {
+      const siblings = (parent.children ?? []).filter((c) => c.id !== canvasDragId);
+      const at = siblings.findIndex((c) => c.id === node.id);
+      const place = ratioY < 0.5 ? "before" : "after";
+      target = { parentId: parent.id, index: place === "before" ? at : at + 1, hintId: node.id, place };
+    }
+
+    if (target) {
+      e.preventDefault();
+      e.stopPropagation();
+      e.dataTransfer.dropEffect = "move";
+      if (
+        canvasDropTarget?.hintId !== target.hintId ||
+        canvasDropTarget?.place !== target.place ||
+        canvasDropTarget?.index !== target.index
+      ) {
+        setCanvasDropTarget(target);
+      }
+    }
+  };
+
+  const onCanvasDragLeave = (node: DocNode) => {
+    if (canvasDropTarget?.hintId === node.id) {
+      setCanvasDropTarget(null);
+    }
+  };
+
+  const onCanvasDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (canvasDragId && canvasDropTarget) {
+      moveTo(canvasDragId, canvasDropTarget.parentId, canvasDropTarget.index);
+    }
+    setCanvasDragId(null);
+    setCanvasDropTarget(null);
+  };
+
+  const onCanvasDragEnd = () => {
+    setCanvasDragId(null);
+    setCanvasDropTarget(null);
   };
 
   const save = async () => {
@@ -200,17 +358,43 @@ export function Editor({ project, page, onBack }: { project: Project; page: Page
     }
   };
 
+  const handleOpenRuntime = async (e: React.MouseEvent) => {
+    if (dirty && present) {
+      e.preventDefault();
+      setStatus({ kind: "busy", what: "ذخیره و انتشار خودکار" });
+      try {
+        const res = await http.put<{ revisionNo: number }>(`/pages/${page.id}/document`, {
+          body: { content: present },
+          ifMatch: etag,
+        });
+        setSaved(present);
+        setEtag(res.etag);
+        await http.post<PublishedVersion>(`/pages/${page.id}/publish`, {
+          body: { revisionNo: res.data.revisionNo },
+        });
+        setRefreshKey((k) => k + 1);
+        setStatus({ kind: "saved", text: "صفحه ذخیره، منتشر و در تب جدید باز شد." });
+        window.open(runtimeUrl, "_blank");
+      } catch {
+        window.open(runtimeUrl, "_blank");
+      }
+    }
+  };
+
   const runtimeUrl = `/runtime.html?site=${encodeURIComponent(project.slug)}&path=${encodeURIComponent(page.path)}`;
 
   return (
     <div className={styles.editor} data-studio-only="page-builder">
       <header className={styles.toolbar}>
-        <button className={ui.button} onClick={onBack}>→ صفحات</button>
-        <strong>{localize(page.title, "fa")}</strong> <code className={ui.muted}>{page.path}</code>
+        <button className={ui.button} onClick={onBack} title="بازگشت به صفحات">→ صفحات</button>
+        <div className={styles.pageInfo}>
+          <strong className={styles.pageTitle}>{localize(page.title, "fa")}</strong>
+          <code className={styles.pagePath}>{page.path}</code>
+        </div>
         <span className={styles.spacer} />
         <div className={styles.toolGroup} role="group" aria-label="ابزار ویرایش">
           <button type="button" className={`${ui.button} ${tool === "select" ? ui.primary : ""}`}
-                  aria-pressed={tool === "select"} title="انتخاب" onClick={() => setToolMode("select")}>
+                  aria-pressed={tool === "select"} title="انتخاب المان‌ها" onClick={() => setToolMode("select")}>
             انتخاب
           </button>
           <button type="button" className={`${ui.button} ${styles.iconTool} ${tool === "style" ? ui.primary : ""}`}
@@ -220,12 +404,92 @@ export function Editor({ project, page, onBack }: { project: Project; page: Page
             <PencilIcon />
           </button>
         </div>
-        <button className={ui.button} disabled={!doc.past.length} onClick={() => setDoc(history.undo(doc))} title="واگرد" aria-label="واگرد">↶</button>
-        <button className={ui.button} disabled={!doc.future.length} onClick={() => setDoc(history.redo(doc))} title="ازنو" aria-label="ازنو">↷</button>
-        <button className={`${ui.button} ${ui.primary}`} disabled={!dirty || status.kind === "busy"} onClick={save}>ذخیره</button>
+        <div className={styles.themeToggleGroup} role="group" aria-label="انتخاب تم">
+          <button
+            type="button"
+            className={`${ui.button} ${appearanceMode === "night" ? styles.themeActiveNight : ""}`}
+            onClick={() => onAppearanceModeChange("night")}
+            title="مشاهده و ویرایش در حالت شب"
+            aria-label="تم شب"
+            aria-pressed={appearanceMode === "night"}
+          >
+            🌙 شب
+          </button>
+          <button
+            type="button"
+            className={`${ui.button} ${appearanceMode === "day" ? styles.themeActiveDay : ""}`}
+            onClick={() => onAppearanceModeChange("day")}
+            title="مشاهده و ویرایش در حالت روز"
+            aria-label="تم روز"
+            aria-pressed={appearanceMode === "day"}
+          >
+            ☀️ روز
+          </button>
+        </div>
+        <div className={styles.historyGroup}>
+          <button className={ui.button} disabled={!doc.past.length} onClick={() => setDoc(history.undo(doc))} title="واگرد" aria-label="واگرد">↶</button>
+          <button className={ui.button} disabled={!doc.future.length} onClick={() => setDoc(history.redo(doc))} title="ازنو" aria-label="ازنو">↷</button>
+        </div>
+        <button className={`${ui.button} ${ui.primary}`} disabled={!dirty || status.kind === "busy"} onClick={save}>
+          {dirty && <span className={styles.dirtyBadge} />}
+          ذخیره
+        </button>
         <button className={ui.button} disabled={dirty || status.kind === "busy"} onClick={publish}
                 title={dirty ? "اول ذخیره کنید" : "انتشار آخرین ویرایش ذخیره‌شده"}>انتشار</button>
-        <a className={ui.button} href={runtimeUrl} target="_blank" rel="noreferrer">نمایش ↗</a>
+        <a className={ui.button} href={runtimeUrl} target="_blank" rel="noreferrer" onClick={handleOpenRuntime} title="نمایش زنده در ران‌تایم">نمایش ↗</a>
+        <button
+          type="button"
+          className={ui.button}
+          style={{ borderColor: "rgba(56, 189, 248, 0.4)", color: "#38bdf8", gap: 6 }}
+          onClick={() => setShowSiteLayout(true)}
+          title="تنظیمات هدر، منو، لوگو، فوتر و تم پروژه"
+        >
+          <span>🎨</span> قالب و تم سایت
+        </button>
+        <button
+          type="button"
+          className={ui.button}
+          style={{
+            background:
+              currentDataMode === "test"
+                ? "rgba(245, 165, 36, 0.15)"
+                : currentDataMode === "live"
+                ? "rgba(16, 185, 129, 0.15)"
+                : "rgba(56, 189, 248, 0.12)",
+            borderColor:
+              currentDataMode === "test"
+                ? "rgba(245, 165, 36, 0.4)"
+                : currentDataMode === "live"
+                ? "rgba(16, 185, 129, 0.4)"
+                : "rgba(56, 189, 248, 0.3)",
+            color:
+              currentDataMode === "test"
+                ? "#f5a524"
+                : currentDataMode === "live"
+                ? "#34d399"
+                : "#38bdf8",
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 6,
+            fontWeight: 600,
+          }}
+          onClick={handleToggleDataMode}
+          title={`حالت داده‌های پروژه: ${
+            currentDataMode === "test"
+              ? "تستی / شبیه‌سازی (کلیک برای تغییر به عملیاتی)"
+              : currentDataMode === "live"
+              ? "واقعی و عملیاتی (کلیک برای تغییر به خودکار)"
+              : "تشخیص خودکار (کلیک برای تغییر به تستی)"
+          }`}
+        >
+          <span>
+            {currentDataMode === "test"
+              ? "🧪 داده‌های تستی"
+              : currentDataMode === "live"
+              ? "🟢 داده‌های واقعی"
+              : "⚡ داده‌ها: خودکار"}
+          </span>
+        </button>
       </header>
       {status.kind === "conflict" && (
         <div className={ui.alert} role="alert">
@@ -257,25 +521,61 @@ export function Editor({ project, page, onBack }: { project: Project; page: Page
           <ResizeHandle size={layersSize} label="تغییر اندازهٔ پنل لایه‌ها" />
         </div>
         <main className={`${styles.canvas} ${appearanceMode === "day" ? styles.canvasDay : styles.canvasNight}`}>
-          <ThemeScope tokens={themeTokensFor(appearanceMode)}>
-            {anyTestData && <TestDataBanner />}
-            <DocumentRenderer document={present} ctx={{
-              components: catalog.components, values,
-              testDataBindings: Object.fromEntries(Object.values(values).map((v) => [v.bindingId, v.isTestData])),
-              locale: "fa",
-              appearanceMode,
-              selection: { selectedId, onSelect: setSelectedId },
-              styleEdit: tool === "style"
-                ? {
-                    active: true,
-                    focus: styleTarget ? { nodeId: styleTarget.nodeId, part: styleTarget.part } : null,
-                    appearanceMode,
-                    onPickPart,
-                    onPatchPart,
-                    onResizeStart,
-                  }
-                : undefined,
-            }} />
+          <ThemeScope tokens={editorTokens}>
+            <div className={styles.artboard} data-theme={appearanceMode} style={projectCssVars as CSSProperties}>
+              {siteLayout.header.enabled && (
+                <div style={{ borderBottom: "1px dashed rgba(56, 189, 248, 0.25)" }}>
+                  <SiteHeader
+                    config={siteLayout.header}
+                    theme={siteLayout.theme}
+                    appearanceMode={appearanceMode}
+                    onAppearanceModeChange={setAppearanceMode}
+                    siteSlug={project.slug}
+                    currentPath={page.path}
+                    liveValues={values}
+                    dataMode={currentDataMode}
+                    showDataModeBadge={siteLayout.showDataModeBadge ?? siteLayout.header.showDataModeBadge ?? true}
+                  />
+                </div>
+              )}
+              {anyTestData && <TestDataBanner />}
+              <DocumentRenderer document={present} ctx={{
+                components: catalog.components, values,
+                testDataBindings: Object.fromEntries(Object.values(values).map((v) => [v.bindingId, v.isTestData])),
+                locale: "fa",
+                appearanceMode,
+                selection: { selectedId, onSelect: setSelectedId },
+                canvasDrag: {
+                  dragId: canvasDragId,
+                  dropTarget: canvasDropTarget,
+                  onDragStart: onCanvasDragStart,
+                  onDragOver: onCanvasDragOver,
+                  onDragLeave: onCanvasDragLeave,
+                  onDrop: onCanvasDrop,
+                  onDragEnd: onCanvasDragEnd,
+                },
+                styleEdit: tool === "style"
+                  ? {
+                      active: true,
+                      focus: styleTarget ? { nodeId: styleTarget.nodeId, part: styleTarget.part } : null,
+                      appearanceMode,
+                      onPickPart,
+                      onPatchPart,
+                      onResizeStart,
+                    }
+                  : undefined,
+              }} />
+              {siteLayout.footer.enabled && (
+                <div style={{ borderTop: "1px dashed rgba(56, 189, 248, 0.25)" }}>
+                  <SiteFooter
+                    config={siteLayout.footer}
+                    theme={siteLayout.theme}
+                    appearanceMode={appearanceMode}
+                    siteSlug={project.slug}
+                  />
+                </div>
+              )}
+            </div>
           </ThemeScope>
           {tool === "style" && styleTarget && styleNode && (
             <StylePopover
@@ -293,10 +593,47 @@ export function Editor({ project, page, onBack }: { project: Project; page: Page
           <Inspector node={selected} spec={specFor(selected)} projectId={project.id} catalog={catalog} values={values}
                      errors={invalidErrors.filter((e) => selected && nodeIdForPointer(present, e.pointer) === selected.id)}
                      onPatch={(patch) => selected && commit(updateNode(present, selected.id, patch))}
-                     onBindingCreated={reloadCatalog} />
+                     onBindingCreated={reloadCatalog}
+                     appearanceMode={appearanceMode}
+                     onAppearanceModeChange={onAppearanceModeChange} />
           <VersionsPanel pageId={page.id} refreshKey={refreshKey} canRestore={!dirty} onRestore={restore} onActivate={activate} />
         </aside>
       </div>
+      {showSiteLayout && (
+        <div style={{
+          position: "fixed",
+          inset: 0,
+          zIndex: 1000000,
+          background: "rgba(0, 0, 0, 0.8)",
+          backdropFilter: "blur(8px)",
+          display: "flex",
+          flexDirection: "column",
+        }}>
+          <div style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            padding: "10px 20px",
+            background: "#18202a",
+            borderBottom: "1px solid rgba(255, 255, 255, 0.1)",
+          }}>
+            <strong style={{ fontSize: "1rem", color: "#ffffff" }}>
+              ویرایشگر قالب کلی، هدر، منو و تم پروژه: {project.name}
+            </strong>
+            <button
+              type="button"
+              className={ui.button}
+              style={{ fontWeight: 600 }}
+              onClick={() => setShowSiteLayout(false)}
+            >
+              ✕ بستن و بازگشت به صفحه
+            </button>
+          </div>
+          <div style={{ flex: 1, minHeight: 0 }}>
+            <SiteLayoutStudio project={project} appearanceMode={appearanceMode} />
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -445,8 +445,41 @@ export function DataSources({ project }: { project: Project }) {
             <li key={ds.id} className={`${ui.card} ${ui.form}`}>
               <div className={ui.row} style={{ justifyContent: "space-between" }}>
                 <div>
-                  <strong>{ds.name}</strong>{" "}
-                  <span className={ui.muted}>{ds.kind} · {ds.dataOrigin}{ds.isTestData ? " · داده آزمایشی" : ""} · {ds.status}</span>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                    <strong>{ds.name}</strong>
+                    {ds.isTestData ? (
+                      <span
+                        style={{
+                          fontSize: "0.72rem",
+                          padding: "2px 6px",
+                          borderRadius: 4,
+                          background: "rgba(245, 165, 36, 0.15)",
+                          color: "#f5a524",
+                          border: "1px solid rgba(245, 165, 36, 0.3)",
+                          fontWeight: 600,
+                        }}
+                        title="این منبع داده آزمایشی و شبیه‌سازی‌شده است"
+                      >
+                        🧪 منبع داده تستی
+                      </span>
+                    ) : (
+                      <span
+                        style={{
+                          fontSize: "0.72rem",
+                          padding: "2px 6px",
+                          borderRadius: 4,
+                          background: "rgba(16, 185, 129, 0.15)",
+                          color: "#34d399",
+                          border: "1px solid rgba(16, 185, 129, 0.3)",
+                          fontWeight: 600,
+                        }}
+                        title="این منبع داده متصل به ادوات زنده صنعتی است"
+                      >
+                        🟢 منبع داده واقعی (Live)
+                      </span>
+                    )}
+                  </div>
+                  <span className={ui.muted}>{ds.kind} · مبدأ: {ds.dataOrigin} · وضعیت: {ds.status}</span>
                   {ds.kind === "http_json" && typeof ds.config?.baseUrl === "string" ? (
                     <div className={ui.muted} dir="ltr">{ds.config.baseUrl}</div>
                   ) : null}

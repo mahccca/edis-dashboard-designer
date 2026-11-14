@@ -1,0 +1,228 @@
+.footer {
+  width: 100%;
+  background: var(--color-surface-raised, #18202a);
+  border-top: 1px solid var(--color-border-subtle, rgba(255, 255, 255, 0.08));
+  color: var(--color-text-muted, #8b98a5);
+  font-family: inherit;
+  font-size: 0.85rem;
+  transition: all 0.2s ease;
+  user-select: none;
+}
+
+.sticky {
+  position: sticky;
+  bottom: 0;
+  z-index: 40;
+  background: rgba(18, 24, 32, 0.92);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.3);
+}
+
+:global([data-theme="day"]) .sticky {
+  background: rgba(255, 255, 255, 0.94);
+  border-top: 1px solid rgba(0, 0, 0, 0.08);
+  box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.05);
+}
+
+.container {
+  max-width: 1360px;
+  margin: 0 auto;
+  padding: 24px 24px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.columns {
+  display: grid;
+  grid-template-columns: 2fr 1fr 1fr;
+  gap: 32px;
+}
+
+.columns3Col {
+  grid-template-columns: 2fr 1fr 1fr;
+}
+
+.columns2Col {
+  grid-template-columns: 2fr 1.5fr;
+}
+
+.columnsStacked {
+  grid-template-columns: 1fr;
+  gap: 20px;
+}
+
+@media (max-width: 768px) {
+  .columns,
+  .columns3Col,
+  .columns2Col {
+    grid-template-columns: 1fr;
+    gap: 20px;
+  }
+}
+
+.col {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.colTitle {
+  font-weight: 700;
+  font-size: 0.9rem;
+  color: var(--color-text-primary, #e6edf3);
+}
+
+.colText {
+  line-height: 1.6;
+  font-size: 0.82rem;
+  color: var(--color-text-muted, #8b98a5);
+}
+
+.linkList {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.linkListCol {
+  flex-direction: column;
+}
+
+.linkListRow {
+  flex-direction: row;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.linkListGrid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+}
+
+.linkItem {
+  color: var(--color-text-muted, #8b98a5);
+  text-decoration: none;
+  font-size: 0.82rem;
+  transition: color 0.15s ease;
+  width: fit-content;
+}
+
+.linkItem:hover {
+  color: var(--color-brand, #38bdf8);
+}
+
+.bottomBar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-top: 16px;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  font-size: 0.78rem;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+:global([data-theme="day"]) .bottomBar {
+  border-top: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+.statusIndicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: rgba(63, 185, 80, 0.1);
+  color: #3fb950;
+  border: 1px solid rgba(63, 185, 80, 0.25);
+  font-size: 0.75rem;
+}
+
+.statusDot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #3fb950;
+  box-shadow: 0 0 8px #3fb950;
+}
+
+/* ========================================================
+   CANVAS DRAG & DROP FOR SITE FOOTER (EDIT / STUDIO MODE)
+   ======================================================== */
+.editableLink {
+  position: relative;
+  cursor: grab;
+  transition: all 0.15s ease;
+  padding: 3px 6px;
+  border-radius: 4px;
+}
+
+.editableLink:hover {
+  outline: 1px dashed rgba(56, 189, 248, 0.6);
+  background: rgba(56, 189, 248, 0.05);
+}
+
+.linkSelected {
+  outline: 2px solid #38bdf8 !important;
+  background: rgba(56, 189, 248, 0.12) !important;
+}
+
+.linkDragging {
+  opacity: 0.35 !important;
+  outline: 2px dashed #38bdf8 !important;
+}
+
+.linkDropBefore {
+  position: relative;
+}
+
+.linkDropBefore::before {
+  content: "";
+  position: absolute;
+  top: -2px;
+  right: 0;
+  left: 0;
+  height: 3px;
+  background: #38bdf8;
+  border-radius: 2px;
+  box-shadow: 0 0 8px #38bdf8;
+  z-index: 20;
+  pointer-events: none;
+}
+
+.linkDropAfter {
+  position: relative;
+}
+
+.linkDropAfter::after {
+  content: "";
+  position: absolute;
+  bottom: -2px;
+  right: 0;
+  left: 0;
+  height: 3px;
+  background: #38bdf8;
+  border-radius: 2px;
+  box-shadow: 0 0 8px #38bdf8;
+  z-index: 20;
+  pointer-events: none;
+}
+
+.editableThemeToggle {
+  cursor: grab;
+  padding: 2px 4px;
+  border-radius: 6px;
+  transition: all 0.15s ease;
+}
+
+.editableThemeToggle:hover {
+  outline: 1px dashed rgba(56, 189, 248, 0.6);
+}
+
+

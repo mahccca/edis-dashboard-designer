@@ -1,12 +1,20 @@
 .shell {
   min-height: 100vh;
+  display: flex;
+  flex-direction: column;
   background: var(--color-surface-base, #0f1419);
   color: var(--color-text-primary, #e6edf3);
 }
 
+.content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
 .shell[data-theme="day"] {
-  background: #f0f3f7;
-  color: #1f2328;
+  background: var(--color-surface-base, #f0f3f7);
+  color: var(--color-text-primary, #1f2328);
 }
 
 .message {
@@ -26,6 +34,20 @@
   inset-inline-start: 12px;
   top: 12px;
   z-index: 20;
+}
+
+.themeToggleFloatingLeft {
+  position: fixed;
+  bottom: 16px;
+  inset-inline-start: 16px;
+  z-index: 90;
+}
+
+.themeToggleFloatingRight {
+  position: fixed;
+  bottom: 16px;
+  inset-inline-end: 16px;
+  z-index: 90;
 }
 
 .status {
@@ -48,3 +70,33 @@
 
 .status[data-status="live"] { color: #3fb950; }
 .status[data-status="error"] { color: #f85149; }
+
+.progressBar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, #38bdf8, #818cf8, #a855f7);
+  z-index: 9999;
+  animation: progressAnim 1.2s infinite ease-in-out;
+}
+
+@keyframes progressAnim {
+  0% { transform: scaleX(0); transform-origin: left; }
+  50% { transform: scaleX(0.7); transform-origin: left; }
+  100% { transform: scaleX(1); transform-origin: right; }
+}
+
+.transitioningContent {
+  opacity: 0.7;
+  pointer-events: none;
+  transition: opacity 0.15s ease;
+}
+
+.customHeaderSlot {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  width: 100%;
+}

@@ -43,6 +43,9 @@ def test_renderers_whitelist_includes_gauge_image_and_chart() -> None:
         "builtin.image@1",
         "builtin.chart@1",
         "builtin.map@1",
+        "builtin.model-3d@1",
+        "builtin.industrial-panel@1",
+        "builtin.svg-cad@1",
     }
 
 

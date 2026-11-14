@@ -26,4 +26,48 @@ describe("runtime page", () => {
     render(<RuntimePage bundle={b} values={{}} locale="en" />);
     expect(screen.getByText(/کامپوننت پشتیبانی‌نشده/)).toBeTruthy();
   });
+
+  it("renders a sticky header section with data-node-role='header' and button links", () => {
+    const customBundle = {
+      ...bundle(),
+      document: {
+        schemaVersion: 1,
+        documentType: "page" as const,
+        settings: {},
+        root: {
+          id: "root",
+          type: "root" as const,
+          children: [
+            {
+              id: "sec-header",
+              type: "section" as const,
+              props: { fixedHeader: true },
+              children: [
+                {
+                  id: "btn-nav",
+                  type: "text" as const,
+                  props: {
+                    text: { fa: "مشاهده گزارشات", en: "View Reports" },
+                    asButton: true,
+                    buttonVariant: "primary",
+                    link: "/reports",
+                    linkTarget: "_blank",
+                  },
+                },
+              ],
+            },
+          ],
+        },
+      },
+    };
+
+    const { container } = render(<RuntimePage bundle={customBundle} values={{}} locale="fa" />);
+    const headerSection = container.querySelector("[data-node-role='header']");
+    expect(headerSection).toBeTruthy();
+
+    const link = screen.getByRole("link", { name: "مشاهده گزارشات" });
+    expect(link).toBeTruthy();
+    expect(link.getAttribute("href")).toContain("/reports");
+    expect(link.getAttribute("target")).toBe("_blank");
+  });
 });

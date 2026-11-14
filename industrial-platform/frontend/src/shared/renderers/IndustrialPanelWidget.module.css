@@ -1,0 +1,307 @@
+.panel {
+  display: flex;
+  flex-direction: column;
+  background: var(--color-surface-raised, #161b22);
+  border: 1px solid var(--color-border-subtle, rgba(255, 255, 255, 0.1));
+  border-radius: var(--radius-md, 12px);
+  padding: 18px;
+  box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.4);
+  transition: all 0.2s ease;
+  user-select: none;
+  position: relative;
+  overflow: hidden;
+}
+
+:global([data-theme="day"]) .panel {
+  background: #ffffff;
+  border-color: rgba(0, 0, 0, 0.1);
+  box-shadow: 0 4px 16px -2px rgba(0, 0, 0, 0.06);
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 14px;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.iconBadge {
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.3rem;
+  background: rgba(56, 189, 248, 0.12);
+  border: 1px solid rgba(56, 189, 248, 0.25);
+  color: #38bdf8;
+}
+
+.titleArea {
+  display: flex;
+  flex-direction: column;
+}
+
+.title {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--color-text-primary, #e6edf3);
+}
+
+:global([data-theme="day"]) .title {
+  color: #1f2328;
+}
+
+.subtitle {
+  font-size: 0.75rem;
+  color: var(--color-text-muted, #8b98a5);
+}
+
+.statusBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.statusRunning {
+  background: rgba(16, 185, 129, 0.15);
+  border: 1px solid rgba(16, 185, 129, 0.35);
+  color: #10b981;
+}
+
+.statusStandby {
+  background: rgba(56, 189, 248, 0.15);
+  border: 1px solid rgba(56, 189, 248, 0.35);
+  color: #38bdf8;
+}
+
+.statusWarning {
+  background: rgba(245, 158, 11, 0.15);
+  border: 1px solid rgba(245, 158, 11, 0.35);
+  color: #f59e0b;
+}
+
+.statusFault {
+  background: rgba(239, 68, 68, 0.18);
+  border: 1px solid rgba(239, 68, 68, 0.4);
+  color: #ef4444;
+}
+
+.pulseDot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+  box-shadow: 0 0 6px currentColor;
+  animation: pulseAnim 1.8s infinite ease-in-out;
+}
+
+@keyframes pulseAnim {
+  0%, 100% { opacity: 0.4; transform: scale(0.9); }
+  50% { opacity: 1; transform: scale(1.2); }
+}
+
+/* Schematic Area */
+.schematic {
+  background: rgba(0, 0, 0, 0.22);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 8px;
+  padding: 12px;
+  margin-bottom: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 72px;
+}
+
+:global([data-theme="day"]) .schematic {
+  background: rgba(0, 0, 0, 0.03);
+  border-color: rgba(0, 0, 0, 0.06);
+}
+
+.inverterDiagram {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--color-text-primary, #e6edf3);
+}
+
+.diagramBox {
+  padding: 6px 12px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+
+:global([data-theme="day"]) .diagramBox {
+  background: #f6f8fa;
+  border-color: #d0d7de;
+  color: #1f2328;
+}
+
+.flowArrow {
+  display: flex;
+  align-items: center;
+  color: #10b981;
+  font-size: 1rem;
+  animation: flowAnim 1.4s infinite linear;
+}
+
+@keyframes flowAnim {
+  0% { transform: translateX(3px); opacity: 0.5; }
+  50% { transform: translateX(-3px); opacity: 1; }
+  100% { transform: translateX(3px); opacity: 0.5; }
+}
+
+.solarGrid {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.solarVisual {
+  width: 60px;
+  height: 40px;
+  border: 2px solid #38bdf8;
+  border-radius: 4px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: 1fr 1fr;
+  gap: 2px;
+  padding: 2px;
+  background: rgba(56, 189, 248, 0.1);
+}
+
+.solarCell {
+  background: rgba(56, 189, 248, 0.3);
+  border-radius: 2px;
+}
+
+.tankVisual {
+  width: 50px;
+  height: 54px;
+  border: 2px solid #38bdf8;
+  border-radius: 6px;
+  position: relative;
+  overflow: hidden;
+  background: rgba(0, 0, 0, 0.1);
+}
+
+.tankFill {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: linear-gradient(180deg, #38bdf8, #0284c7);
+  transition: height 0.4s ease;
+}
+
+/* Custom Equipment Image Container */
+.customImageContainer {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  width: 100%;
+  padding: 4px;
+}
+
+.customImage {
+  max-width: 100%;
+  object-fit: contain;
+  border-radius: 6px;
+  filter: drop-shadow(0 4px 12px rgba(0, 0, 0, 0.3));
+  transition: transform 0.2s ease;
+}
+
+.customImage:hover {
+  transform: scale(1.02);
+}
+
+.imageOverlayBadge {
+  position: absolute;
+  bottom: 6px;
+  right: 6px;
+  background: rgba(0, 0, 0, 0.75);
+  backdrop-filter: blur(6px);
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 0.72rem;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  color: #38bdf8;
+  font-weight: 600;
+}
+
+/* Metrics Grid */
+.metricsGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(90px, 1fr));
+  gap: 10px;
+}
+
+.metricItem {
+  display: flex;
+  flex-direction: column;
+  padding: 8px 10px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 6px;
+}
+
+:global([data-theme="day"]) .metricItem {
+  background: #f6f8fa;
+  border-color: #d0d7de;
+}
+
+.metricLabel {
+  font-size: 0.7rem;
+  color: var(--color-text-muted, #8b98a5);
+  margin-bottom: 2px;
+}
+
+.metricValueWrap {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+}
+
+.metricValue {
+  font-size: 1rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--color-text-primary, #e6edf3);
+}
+
+:global([data-theme="day"]) .metricValue {
+  color: #1f2328;
+}
+
+.metricUnit {
+  font-size: 0.7rem;
+  font-weight: 500;
+  color: var(--color-text-muted, #8b98a5);
+}
+
+.highlightValue {
+  color: #38bdf8;
+}
+

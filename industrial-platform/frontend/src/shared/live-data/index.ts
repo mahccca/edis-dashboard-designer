@@ -22,7 +22,9 @@ export function applyMessage(state: LiveState, msg: ServerMessage): LiveState {
   switch (msg.type) {
     case "values": {
       const values = { ...state.values };
-      for (const item of msg.items) values[item.bindingId] = item;
+      if (Array.isArray(msg.items)) {
+        for (const item of msg.items) values[item.bindingId] = item;
+      }
       return { values, status: "live", error: null };
     }
     case "error":

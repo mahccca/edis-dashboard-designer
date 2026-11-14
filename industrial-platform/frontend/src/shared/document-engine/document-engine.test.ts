@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { KPI_SPEC, pilotDocument } from "../../test/fixtures";
 import {
-  ConstraintError, canContain, collectIds, createNode, duplicateIds, findNode, history, insertChild, moveNode, moveNodeTo,
+  ConstraintError, canContain, collectIds, createButtonNode, createHeaderSection, createMonitoringHeaderSection, createNode, duplicateIds, findNode, history, insertChild, moveNode, moveNodeTo,
   moveViolation, newId, nodeIdForPointer, removeNode, updateNode,
 } from ".";
 
@@ -131,5 +131,39 @@ describe("undo/redo history", () => {
     expect(h.present).toBe(9);
     expect(h.future).toEqual([]);
     expect(history.undo(history.init(0))).toEqual(history.init(0));
+  });
+});
+
+describe("button and header presets", () => {
+  it("creates a button node with navigation link", () => {
+    const btn = createButtonNode(new Set(["btn-taken"]), "پایش", "/plant");
+    expect(btn.type).toBe("text");
+    expect(btn.props?.asButton).toBe(true);
+    expect(btn.props?.link).toBe("/plant");
+    expect(btn.id).not.toBe("btn-taken");
+  });
+
+  it("creates a fixed header section with brand title and navigation buttons", () => {
+    const hdr = createHeaderSection(new Set(), "پلتفرم صنعتی");
+    expect(hdr.type).toBe("section");
+    expect(hdr.props?.fixedHeader).toBe(true);
+    expect(hdr.children).toHaveLength(1);
+    const row = hdr.children![0];
+    expect(row!.type).toBe("row");
+    expect(row!.children).toHaveLength(2);
+  });
+
+  it("creates a monitoring header section with KPI telemetry and navigation", () => {
+    const monHdr = createMonitoringHeaderSection(new Set(), KPI_SPEC, "مجتمع فولاد");
+    expect(monHdr.type).toBe("section");
+    expect(monHdr.props?.fixedHeader).toBe(true);
+    expect(monHdr.children).toHaveLength(1);
+    const row = monHdr.children![0];
+    expect(row!.type).toBe("row");
+    // Column 1: Brand/Logo, Column 2: KPI Widget, Column 3: Navigation buttons
+    expect(row!.children).toHaveLength(3);
+    const kpiCol = row!.children![1];
+    expect(kpiCol!.children![0]!.type).toBe("component");
+    expect(kpiCol!.children![0]!.component?.definitionKey).toBe("industrial.kpi-card");
   });
 });

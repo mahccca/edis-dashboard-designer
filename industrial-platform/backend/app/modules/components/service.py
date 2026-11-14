@@ -50,6 +50,24 @@ RENDERERS = [
         "supportedInputs": ["metrics"],
         "description": "Progressive map: world/continent/country/province/city — loads only the selected region GeoJSON.",
     },
+    {
+        "rendererId": "builtin.industrial-panel@1",
+        "category": "control",
+        "supportedInputs": ["power", "voltage", "current", "temperature", "efficiency", "status", "primaryValue", "secondaryValue"],
+        "description": "Custom visual industrial panel (Solar Panel, Inverter, BESS, Tank, Motor, etc.) with animated schematics and live telemetry bindings.",
+    },
+    {
+        "rendererId": "builtin.svg-cad@1",
+        "category": "symbol",
+        "supportedInputs": ["tank_level", "valve_pressure", "pump_status", "temp_hex", "primaryValue", "secondaryValue"],
+        "description": "Interactive AutoCAD & Canvas SVG visual schematic with dynamic telemetry hotspots and data overlays.",
+    },
+    {
+        "rendererId": "builtin.model-3d@1",
+        "category": "symbol",
+        "supportedInputs": ["level", "speed", "rpm", "temperature", "pressure", "power", "status", "primaryValue"],
+        "description": "Interactive 3D industrial equipment renderer (Three.js) with mouse rotation, zoom, pan, auto-spin, and live telemetry animation.",
+    },
 ]
 RENDERER_IDS = {r["rendererId"] for r in RENDERERS}
 

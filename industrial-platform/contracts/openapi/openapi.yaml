@@ -110,6 +110,45 @@ paths:
               schema: { $ref: '#/components/schemas/Me' }
         '401': { $ref: '#/components/responses/Unauthorized' }
 
+  /auth/credentials:
+    put:
+      tags: [auth]
+      operationId: changeCredentials
+      x-permission: authenticated
+      responses:
+        '200':
+          description: Credentials updated successfully.
+
+  /auth/users:
+    get:
+      tags: [auth]
+      operationId: listUsers
+      x-permission: platform_admin
+      responses:
+        '200':
+          description: List of platform users.
+    post:
+      tags: [auth]
+      operationId: createUser
+      x-permission: platform_admin
+      responses:
+        '201':
+          description: User created.
+
+  /auth/users/{user_id}:
+    patch:
+      tags: [auth]
+      operationId: updateUserByAdmin
+      x-permission: platform_admin
+      parameters:
+        - name: user_id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: User updated.
+
   # ------------------------------------------------------------ projects
   /projects:
     get:

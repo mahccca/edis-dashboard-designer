@@ -1,4 +1,4 @@
-import type { BindingRef, BindingValue, ComponentSpec, DataBinding, DataSource, DocNode, PropertySpec, ProblemError, StyleBlock } from "../../shared/api/types";
+import type { BindingRef, BindingValue, ComponentSpec, DataBinding, DataSource, DocNode, PropertySpec, ProblemError, StyleBlock, StyleValue } from "../../shared/api/types";
 import { localize } from "../../shared/i18n";
 import ui from "../../shared/ui/controls.module.css";
 import { ApiOptionPicker } from "./ApiOptionPicker";
@@ -6,6 +6,8 @@ import { BindingConfigPanel } from "./BindingConfigPanel";
 import { BindingPicker } from "./BindingPicker";
 import styles from "./Editor.module.css";
 import type { EditorCatalog } from "./useEditorData";
+import { patchPartStyle, type AppearanceMode } from "../../shared/style-engine/parts";
+import { resolveLinkHref } from "../../shared/rendering/DocumentRenderer";
 
 type Patch = (n: DocNode) => DocNode;
 
@@ -154,7 +156,7 @@ function PropertyField({
                      onChange={(e) => onChange(e.target.value || undefined)} />;
   }
   return (
-    <div className={ui.field}>
+    <label className={ui.field}>
       <span className={ui.label}>{localize(spec.label, "fa")} <code>{spec.key}</code></span>
       {input}
       {hint && <span className={ui.hint}>{hint}</span>}
@@ -180,7 +182,7 @@ function PropertyField({
           />
         </details>
       )}
-    </div>
+    </label>
   );
 }
 
@@ -193,9 +195,11 @@ interface Props {
   errors: ProblemError[];
   onPatch: (patch: Patch) => void;
   onBindingCreated: (b: DataBinding) => Promise<void>;
+  appearanceMode?: AppearanceMode;
+  onAppearanceModeChange?: (mode: AppearanceMode) => void;
 }
 
-export function Inspector({ node, spec, projectId, catalog, values, errors, onPatch, onBindingCreated }: Props) {
+export function Inspector({ node, spec, projectId, catalog, values, errors, onPatch, onBindingCreated, appearanceMode = "night", onAppearanceModeChange }: Props) {
   if (!node) return <div className={styles.panel}><div className={ui.muted}>یک عنصر را انتخاب کنید.</div></div>;
   const setBinding = (key: string) => (ref: BindingRef | undefined) =>
     onPatch((n) => {
@@ -207,12 +211,203 @@ export function Inspector({ node, spec, projectId, catalog, values, errors, onPa
 
   return (
     <div className={styles.panel}>
-      <div className={styles.panelTitle}>{node.type} <code>{node.id}</code></div>
+      <div className={styles.panelHeader}>
+        <div className={styles.panelTitle}>
+          <span>تنظیمات عنصر:</span>
+          <strong>{node.type}</strong>
+        </div>
+        <code className={styles.pagePath}>{node.id}</code>
+      </div>
       {errors.length > 0 && (
         <div className={ui.alert} role="alert">{errors.map((e) => <div key={e.pointer + e.code}>{e.message} <code>{e.code}</code></div>)}</div>
       )}
       <div className={ui.form}>
-        <div className={ui.hint}>برای تغییر رنگ و فونت، ابزار مداد را از نوار بالا بزنید و روی همان ناحیه روی بوم کلیک کنید.</div>
+        <div className={ui.info} style={{ fontSize: "0.78rem" }}>
+          💡 برای ویرایش مستقیم رنگ، فونت و قاب، ابزار <strong>مداد</strong> را از نوار بالا فعال کرده و روی عنصر کلیک کنید.
+        </div>
+        {(node.type === "root" || node.type === "section" || node.type === "container") && (
+          <div className={ui.card} style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+            <div className={styles.panelTitle}>
+              <span>🎨 رنگ‌های وابسته به تم ({node.type === "root" ? "ریشه" : node.type})</span>
+            </div>
+            <div className={ui.row} style={{ justifyContent: "space-between", alignItems: "center" }}>
+              <span className={ui.label}>تم فعال:</span>
+              <div className={styles.toolGroup}>
+                <button
+                  type="button"
+                  className={`${ui.button} ${appearanceMode === "night" ? ui.primary : ""}`}
+                  style={{ padding: "3px 10px", fontSize: "0.76rem" }}
+                  onClick={() => onAppearanceModeChange?.("night")}
+                  title="تنظیم رنگ‌ها در حالت شب"
+                >
+                  🌙 تم شب
+                </button>
+                <button
+                  type="button"
+                  className={`${ui.button} ${appearanceMode === "day" ? ui.primary : ""}`}
+                  style={{ padding: "3px 10px", fontSize: "0.76rem" }}
+                  onClick={() => onAppearanceModeChange?.("day")}
+                  title="تنظیم رنگ‌ها در حالت روز"
+                >
+                  ☀️ تم روز
+                </button>
+              </div>
+            </div>
+
+            <ColorField
+              label={`رنگ پس‌زمینه (${appearanceMode === "day" ? "حالت روز" : "حالت شب"})`}
+              value={(appearanceMode === "day" ? node.partStylesDay?.box?.background : node.partStyles?.box?.background) ?? ""}
+              onChange={(val) => onPatch((n) => patchPartStyle(n, "box", "background", val as StyleValue | undefined, appearanceMode))}
+            />
+            <div className={ui.row} style={{ gap: 4, marginTop: -4 }}>
+              <span className={ui.hint} style={{ width: "100%", marginBottom: 1 }}>پیشنهاد پس‌زمینه:</span>
+              {(appearanceMode === "day"
+                ? ["#f0f3f7", "#ffffff", "#f8fafc", "#e8edf5", "transparent"]
+                : ["#0f1419", "#121820", "#18202a", "#1a2433", "transparent"]
+              ).map((hex) => (
+                <button
+                  key={hex}
+                  type="button"
+                  className={ui.button}
+                  style={{
+                    padding: "2px 7px",
+                    fontSize: "0.7rem",
+                    background: hex === "transparent" ? "transparent" : hex,
+                    color: appearanceMode === "day" && hex !== "transparent" ? "#1f2328" : "#e6edf3",
+                    border: "1px solid rgba(128,128,128,0.3)",
+                  }}
+                  onClick={() => onPatch((n) => patchPartStyle(n, "box", "background", hex === "transparent" ? "transparent" : hex, appearanceMode))}
+                >
+                  {hex === "transparent" ? "شفاف" : hex}
+                </button>
+              ))}
+            </div>
+
+            <ColorField
+              label={`رنگ متون (${appearanceMode === "day" ? "حالت روز" : "حالت شب"})`}
+              value={(appearanceMode === "day" ? node.partStylesDay?.box?.color : node.partStyles?.box?.color) ?? ""}
+              onChange={(val) => onPatch((n) => patchPartStyle(n, "box", "color", val as StyleValue | undefined, appearanceMode))}
+            />
+            <div className={ui.row} style={{ gap: 4, marginTop: -4 }}>
+              <span className={ui.hint} style={{ width: "100%", marginBottom: 1 }}>پیشنهاد رنگ متن:</span>
+              {(appearanceMode === "day"
+                ? ["#1f2328", "#0f172a", "#334155", "#64748b"]
+                : ["#e6edf3", "#ffffff", "#cbd5e1", "#8b98a5"]
+              ).map((hex) => (
+                <button
+                  key={hex}
+                  type="button"
+                  className={ui.button}
+                  style={{
+                    padding: "2px 7px",
+                    fontSize: "0.7rem",
+                    border: "1px solid rgba(128,128,128,0.3)",
+                  }}
+                  onClick={() => onPatch((n) => patchPartStyle(n, "box", "color", hex, appearanceMode))}
+                >
+                  <span style={{ display: "inline-block", width: 7, height: 7, borderRadius: "50%", background: hex, marginInlineEnd: 4 }} />
+                  {hex}
+                </button>
+              ))}
+            </div>
+
+            {Boolean(
+              appearanceMode === "day"
+                ? node.partStylesDay?.box?.background || node.partStylesDay?.box?.color
+                : node.partStyles?.box?.background || node.partStyles?.box?.color
+            ) && (
+              <button
+                type="button"
+                className={ui.button}
+                style={{ fontSize: "0.75rem", alignSelf: "flex-start", marginTop: 4 }}
+                onClick={() => {
+                  onPatch((n) => {
+                    const u1 = patchPartStyle(n, "box", "background", undefined, appearanceMode);
+                    return patchPartStyle(u1, "box", "color", undefined, appearanceMode);
+                  });
+                }}
+              >
+                ↺ بازنشانی رنگ‌های این تم به پیش‌فرض
+              </button>
+            )}
+          </div>
+        )}
+        
+        {node.type === "section" && (
+          <div style={{
+            background: "rgba(255, 255, 255, 0.03)",
+            border: "1px solid rgba(255, 255, 255, 0.08)",
+            borderRadius: 8,
+            padding: "12px 14px",
+            display: "flex",
+            flexDirection: "column",
+            gap: 10,
+          }}>
+            <div className={styles.panelTitle} style={{ margin: 0, color: "#38bdf8" }}>
+              📌 تنظیمات هدر صفحه و سایت (Header Settings)
+            </div>
+            <label style={{ display: "flex", alignItems: "center", gap: 10, cursor: "pointer", fontSize: "0.85rem", fontWeight: 600 }}>
+              <input
+                type="checkbox"
+                checked={Boolean(node.props?.fixedHeader)}
+                onChange={(e) => onPatch(setProp("fixedHeader", e.target.checked ? true : undefined))}
+              />
+              ثابت‌سازی در بالای صفحه (Sticky Header)
+            </label>
+            <div className={ui.hint} style={{ margin: 0 }}>
+              این بخش با اسکرول کردن صفحه در بالاترین نقطه ثابت (Sticky) می‌ماند و سایر بخش‌های داینامیک زیر آن اسکرول می‌شوند.
+            </div>
+
+            <label style={{ display: "flex", alignItems: "center", gap: 10, cursor: "pointer", fontSize: "0.85rem", fontWeight: 600, marginTop: 4, color: "#a855f7" }}>
+              <input
+                type="checkbox"
+                checked={Boolean(node.props?.isSiteHeader)}
+                onChange={(e) => {
+                  const checked = e.target.checked;
+                  onPatch((prev) => {
+                    const p = { ...(prev.props ?? {}) };
+                    if (checked) {
+                      p.isSiteHeader = true;
+                      p.fixedHeader = true;
+                    } else {
+                      delete p.isSiteHeader;
+                    }
+                    return { ...prev, props: p };
+                  });
+                }}
+              />
+              استفاده به عنوان هدر رسمی سایت (Global Site Header)
+            </label>
+            <div className={ui.hint} style={{ margin: 0 }}>
+              با فعال کردن این گزینه، این سکشن به عنوان هدر اصلی سایت عمل کرده و هدر پیش‌فرض سایت به صورت خودکار با طراحی شما جایگزین می‌شود.
+            </div>
+
+            <label style={{ display: "flex", alignItems: "center", gap: 10, cursor: "pointer", fontSize: "0.85rem", fontWeight: 600, marginTop: 4, color: "#10b981" }}>
+              <input
+                type="checkbox"
+                checked={Boolean(node.props?.sharedHeader)}
+                onChange={(e) => {
+                  const checked = e.target.checked;
+                  onPatch((prev) => {
+                    const p = { ...(prev.props ?? {}) };
+                    if (checked) {
+                      p.sharedHeader = true;
+                      p.fixedHeader = true;
+                      p.isSiteHeader = true;
+                    } else {
+                      delete p.sharedHeader;
+                    }
+                    return { ...prev, props: p };
+                  });
+                }}
+              />
+              اشتراک‌گذاری در تمام صفحات پروژه (Share Across Project)
+            </label>
+            <div className={ui.hint} style={{ margin: 0 }}>
+              با فعال‌سازی این گزینه، این هدر به عنوان هدر ثابت و مشترک پروژه شناخته شده و روی تمامی صفحات دیگر نیز در بالاترین نقطه نمایش داده می‌شود.
+            </div>
+          </div>
+        )}
         {(node.type === "heading" || node.type === "text") && (
           <>
             <label className={ui.field}><span className={ui.label}>متن</span>
@@ -225,6 +420,101 @@ export function Inspector({ node, spec, projectId, catalog, values, errors, onPa
                 </select>
               </label>
             )}
+
+            <div style={{
+              background: "rgba(255, 255, 255, 0.03)",
+              border: "1px solid rgba(255, 255, 255, 0.08)",
+              borderRadius: 8,
+              padding: "12px 14px",
+              marginTop: 8,
+              display: "flex",
+              flexDirection: "column",
+              gap: 10,
+            }}>
+              <div className={styles.panelTitle} style={{ margin: 0, color: "#38bdf8" }}>
+                🔘 دکمه، پیوند و ناوبری (Button & Link)
+              </div>
+
+              <label style={{ display: "flex", alignItems: "center", gap: 10, cursor: "pointer", fontSize: "0.85rem", fontWeight: 600 }}>
+                <input
+                  type="checkbox"
+                  checked={Boolean(node.props?.asButton)}
+                  onChange={(e) => onPatch(setProp("asButton", e.target.checked ? true : undefined))}
+                />
+                نمایش به‌صورت دکمه تعاملی (Button Style)
+              </label>
+
+              {Boolean(node.props?.asButton) && (
+                <label className={ui.field}>
+                  <span className={ui.label}>طرح دکمه (Button Variant)</span>
+                  <select
+                    className={ui.select}
+                    value={String(node.props?.buttonVariant ?? "primary")}
+                    onChange={(e) => onPatch(setProp("buttonVariant", e.target.value))}
+                  >
+                    <option value="primary">شاخص فیروزه‌ای (Primary Gradient)</option>
+                    <option value="secondary">شیشه‌ای تیره (Secondary Glass)</option>
+                    <option value="outline">خط دور باریک (Outline)</option>
+                    <option value="danger">قرمز هشداری (Danger)</option>
+                  </select>
+                </label>
+              )}
+
+              <div className={ui.field}>
+                <span className={ui.label}>پیوند به صفحه پروژه یا URL</span>
+                {catalog.pages && catalog.pages.length > 0 && (
+                  <select
+                    className={ui.select}
+                    style={{ marginBottom: 6 }}
+                    value={catalog.pages.some((p) => p.path === node.props?.link) ? String(node.props?.link) : ""}
+                    onChange={(e) => {
+                      if (e.target.value) onPatch(setProp("link", e.target.value));
+                    }}
+                  >
+                    <option value="">-- انتخاب از صفحات این پروژه --</option>
+                    {catalog.pages.map((p) => (
+                      <option key={p.id} value={p.path}>
+                        {localize(p.title, "fa")} ({p.path})
+                      </option>
+                    ))}
+                  </select>
+                )}
+                <input
+                  className={ui.input}
+                  dir="ltr"
+                  placeholder="مثلاً /monitoring یا https://example.com"
+                  value={String(node.props?.link ?? "")}
+                  onChange={(e) => onPatch(setProp("link", e.target.value || undefined))}
+                />
+              </div>
+
+              {Boolean(node.props?.link) && (
+                <>
+                  <label className={ui.field}>
+                    <span className={ui.label}>نحوه باز شدن پیوند</span>
+                    <select
+                      className={ui.select}
+                      value={String(node.props?.linkTarget ?? "_self")}
+                      onChange={(e) => onPatch(setProp("linkTarget", e.target.value))}
+                    >
+                      <option value="_self">در همین صفحه (Same Page - _self)</option>
+                      <option value="_blank">در صفحه / تب جدید (New Tab - _blank)</option>
+                    </select>
+                  </label>
+                  <button
+                    type="button"
+                    className={ui.button}
+                    style={{ fontSize: "0.8rem", alignSelf: "flex-start", gap: 6 }}
+                    onClick={() => {
+                      const href = resolveLinkHref(String(node.props?.link));
+                      window.open(href, "_blank");
+                    }}
+                  >
+                    ↗ تست باز کردن در تب جدید
+                  </button>
+                </>
+              )}
+            </div>
           </>
         )}
         {node.type === "column" && (
@@ -241,10 +531,10 @@ export function Inspector({ node, spec, projectId, catalog, values, errors, onPa
               <PropertyField key={p.key} spec={p} value={node.props?.[p.key]} fallback={spec.defaults[p.key]}
                              dataSources={catalog.dataSources} projectId={projectId}
                              onBindingCreated={onBindingCreated}
-                             onDynamicBind={(bindingId) => onPatch(setBinding(p.key)({ bindingId }))}
+                             onDynamicBind={(bindingId) => setBinding(p.key)({ bindingId })}
                              onChange={(v) => onPatch(setProp(p.key, v))} />
             ))}
-            <div className={styles.panelTitle}>اتصال داده</div>
+            <div className={styles.panelTitle}>🔗 اتصال داده‌های زنده (Live Telemetry)</div>
             {spec.inputs.map((input) => (
               <BindingPicker key={input.key} projectId={projectId} inputKey={input.key} current={node.bindings?.[input.key]}
                              catalog={catalog} values={values} onChange={setBinding(input.key)} onCreated={onBindingCreated} />
@@ -253,7 +543,7 @@ export function Inspector({ node, spec, projectId, catalog, values, errors, onPa
         )}
         {node.type === "component" && !spec && <div className={ui.alert}>این نسخه از کامپوننت در این پروژه در دسترس نیست.</div>}
 
-        <div className={styles.panelTitle}>فاصله‌گذاری (padding / margin)</div>
+        <div className={styles.panelTitle}>📐 فاصله‌گذاری و حاشیه‌ها (Padding / Margin)</div>
         <div className={ui.hint}>عدد = پیکسل. یا واحد CSS مثل 12px / 1rem / 8px 16px</div>
         <SpacingField
           label="Padding (همه طرف)"

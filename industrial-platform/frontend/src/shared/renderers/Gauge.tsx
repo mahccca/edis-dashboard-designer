@@ -35,6 +35,21 @@ export function Gauge({ node, spec, inputs, locale }: RendererProps) {
   const decimals = typeof props.decimals === "number" ? props.decimals : 1;
   const warnAbove = typeof props.warnAbove === "number" ? props.warnAbove : null;
   const critAbove = typeof props.critAbove === "number" ? props.critAbove : null;
+  const customColor = typeof props.color === "string" && props.color.trim()
+    ? props.color.trim()
+    : typeof props.barColor === "string" && props.barColor.trim()
+    ? props.barColor.trim()
+    : null;
+  const trackColor = typeof props.trackColor === "string" && props.trackColor.trim()
+    ? props.trackColor.trim()
+    : "var(--color-border-subtle, #2a3440)";
+  const bgImage = typeof props.backgroundImage === "string" && props.backgroundImage.trim()
+    ? props.backgroundImage.trim()
+    : typeof props.imageUrl === "string" && props.imageUrl.trim()
+    ? props.imageUrl.trim()
+    : null;
+  const showNeedle = Boolean(props.showNeedle) || Boolean(bgImage);
+  const showArc = props.showArc !== false;
 
   const boundMin = bindingNumber(inputs.min);
   const boundMax = bindingNumber(inputs.max);
@@ -48,7 +63,7 @@ export function Gauge({ node, spec, inputs, locale }: RendererProps) {
   const span = max - min;
   const ratio = numeric == null || span <= 0 ? 0 : Math.max(0, Math.min(1, (numeric - min) / span));
 
-  let needleColor = "var(--color-accent-primary, #3d8bfd)";
+  let needleColor = customColor ?? "var(--color-accent-primary, #3d8bfd)";
   if (numeric != null && critAbove != null && numeric >= critAbove) needleColor = "var(--color-status-critical, #f85149)";
   else if (numeric != null && warnAbove != null && numeric >= warnAbove) needleColor = "var(--color-status-warning, #d29922)";
 
@@ -57,6 +72,7 @@ export function Gauge({ node, spec, inputs, locale }: RendererProps) {
   const r = 70;
   const start = 180;
   const end = 180 + 180 * ratio;
+  const needleAngle = -90 + 180 * ratio;
   const display = numeric == null
     ? "—"
     : new Intl.NumberFormat(locale === "fa" ? "fa-IR" : "en-US", {
@@ -68,11 +84,51 @@ export function Gauge({ node, spec, inputs, locale }: RendererProps) {
     <div className={styles.frame} data-renderer="builtin.gauge@1" data-min={String(min)} data-max={String(max)}>
       {title ? <div className={styles.title}>{title}</div> : null}
       <svg className={styles.svg} viewBox="0 0 200 120" role="img" aria-label={title}>
-        <path d={arcPath(cx, cy, r, 180, 360)} fill="none" stroke="var(--color-border-subtle, #2a3440)" strokeWidth="12" strokeLinecap="round" />
-        {numeric != null ? (
-          <path d={arcPath(cx, cy, r, start, end)} fill="none" stroke={needleColor} strokeWidth="12" strokeLinecap="round" />
+        {bgImage && (
+          <image
+            href={bgImage}
+            xlinkHref={bgImage}
+            x="10"
+            y="5"
+            width="180"
+            height="105"
+            preserveAspectRatio="xMidYMid meet"
+          />
+        )}
+        {showArc && (
+          <>
+            <path
+              d={arcPath(cx, cy, r, 180, 360)}
+              fill="none"
+              stroke={trackColor}
+              strokeWidth={bgImage ? "6" : "12"}
+              opacity={bgImage ? 0.35 : 1}
+              strokeLinecap="round"
+            />
+            {numeric != null ? (
+              <path
+                d={arcPath(cx, cy, r, start, end)}
+                fill="none"
+                stroke={needleColor}
+                strokeWidth={bgImage ? "6" : "12"}
+                opacity={bgImage ? 0.85 : 1}
+                strokeLinecap="round"
+              />
+            ) : null}
+          </>
+        )}
+        {showNeedle && numeric != null ? (
+          <g transform={`rotate(${needleAngle}, ${cx}, ${cy})`} style={{ transition: "transform 0.4s ease" }}>
+            <polygon
+              points={`${cx - 3.5},${cy} ${cx + 3.5},${cy} ${cx},${cy - r + 8}`}
+              fill={needleColor}
+              style={{ filter: "drop-shadow(0 2px 4px rgba(0,0,0,0.5))" }}
+            />
+            <circle cx={cx} cy={cy} r="6" fill={needleColor} stroke="#ffffff" strokeWidth="1.5" />
+          </g>
+        ) : !showNeedle ? (
+          <circle cx={cx} cy={cy} r="4" fill={needleColor} />
         ) : null}
-        <circle cx={cx} cy={cy} r="4" fill={needleColor} />
       </svg>
       <div className={styles.valueRow}>
         <span>{display}</span>

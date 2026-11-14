@@ -26,6 +26,14 @@ def hash_password(password: str) -> str:
     return _hasher.hash(password)
 
 
+def verify_password(password_hash: str, password: str) -> bool:
+    try:
+        _hasher.verify(password_hash, password)
+        return True
+    except (VerificationError, InvalidHashError):
+        return False
+
+
 def _token_hash(token: str) -> bytes:
     return hashlib.sha256(token.encode()).digest()
 
@@ -165,3 +173,7 @@ def authorize(db: Session, user: User | None, project_id: uuid.UUID, permission:
 
 def add_member(db: Session, project_id: uuid.UUID, user_id: uuid.UUID, role: str) -> None:
     db.merge(ProjectMember(project_id=project_id, user_id=user_id, role_key=role))
+
+
+def list_users(db: Session) -> list[User]:
+    return list(db.scalars(select(User).order_by(User.created_at.asc())))
