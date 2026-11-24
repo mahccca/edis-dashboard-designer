@@ -847,7 +847,7 @@
 }
 
 /* ==========================================================================
-   RIGHT PANEL (PREVIEW FRAME & WINDOW CHROME)
+   RIGHT PANEL (PREVIEW WORKSPACE)
    ========================================================================== */
 .previewPanel {
   display: flex;
@@ -870,60 +870,10 @@
   gap: 12px;
 }
 
-.windowControls {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  flex-shrink: 0;
-}
-
-.windowDot {
-  width: 10px;
-  height: 10px;
-  border-radius: 9999px;
-  display: inline-block;
-  opacity: 0.85;
-}
-
-.windowDotRed {
-  background: #ff5f56;
-}
-
-.windowDotYellow {
-  background: #ffbd2e;
-}
-
-.windowDotGreen {
-  background: #27c93f;
-}
-
-.previewAddressBar {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  height: 28px;
-  padding: 0 14px;
-  background: var(--dp-well);
-  border: 1px solid var(--dp-edge);
-  border-radius: 9999px;
-  font-family: ui-monospace, SFMono-Regular, monospace;
-  font-size: 0.72rem;
-  color: var(--dp-ink-3);
-  max-width: 320px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.previewAddressBar svg {
-  color: var(--dp-ink-4);
-  flex-shrink: 0;
-}
-
 .previewTitle {
-  font-size: 0.78rem;
+  font-size: 0.82rem;
   font-weight: 500;
-  color: var(--dp-ink-3);
+  color: var(--dp-ink-2);
   display: flex;
   align-items: center;
   gap: 8px;
