@@ -101,7 +101,7 @@ export async function request<T>(method: string, path: string, opts: RequestOpti
   if (opts.body !== undefined) headers["Content-Type"] = "application/json";
 
   // If making an unsafe request and no CSRF token is in memory/storage, attempt to fetch it first
-  if (UNSAFE.has(method) && !csrfToken && path !== "/auth/login" && path !== "/auth/me" && typeof window !== "undefined") {
+  if (UNSAFE.has(method) && !csrfToken && !path.endsWith("login") && !path.endsWith("me") && typeof window !== "undefined") {
     await ensureCsrfToken();
   }
 
@@ -133,7 +133,7 @@ export async function request<T>(method: string, path: string, opts: RequestOpti
     const isCsrfError =
       res.status === 403 &&
       (p.code === "csrf_failed" || (typeof p.detail === "string" && p.detail.includes("X-CSRF-Token")));
-    if (isCsrfError && !opts._retried && path !== "/auth/login") {
+    if (isCsrfError && !opts._retried && !path.endsWith("login")) {
       setCsrfToken(null);
       const fresh = await ensureCsrfToken();
       if (fresh) {
