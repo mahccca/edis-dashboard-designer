@@ -759,34 +759,28 @@ export function SiteLayoutStudio({ project, appearanceMode = "night", onOpenPage
 
   return (
     <div className={styles.studio} dir="rtl">
-      {/* Top action toolbar */}
+      {/* Top action toolbar (DesignPrompts style) */}
       <div className={styles.topBar}>
         <div className={styles.projectInfo}>
-          <span style={{ fontSize: "1.2rem" }}>🎨</span>
-          <strong className={styles.projectTitle}>ادیتور جامع قالب، هدر و منوی سایت</strong>
-          <span className={styles.projectSlug}>{project.slug}</span>
+          <div className={styles.projectGlyph}>
+            <span>🎨</span>
+          </div>
+          <div className={styles.projectTitles}>
+            <strong className={styles.projectTitle}>سازنده و ادیتور قالب سایت</strong>
+            <span className={styles.projectSlug}>{project.slug}</span>
+          </div>
         </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
           <button
             type="button"
-            className={ui.button}
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: 8,
-              background: "linear-gradient(135deg, #0284c7 0%, #0369a1 100%)",
-              borderColor: "#38bdf8",
-              color: "#fff",
-              fontWeight: 600,
-              boxShadow: "0 2px 8px rgba(14, 165, 233, 0.25)",
-            }}
+            className={styles.syncBtn}
             disabled={syncingTheme}
             onClick={handleSyncThemeToAllPages}
             title="اعمال و همگام‌سازی تم و رنگ‌های پروژه روی تمامی صفحات موجود"
           >
             {syncingTheme ? "⏳ در حال همگام‌سازی…" : "🔄 همگام‌سازی تم در تمام صفحات"}
           </button>
-          <button type="button" className={`${ui.button} ${ui.primary}`} onClick={handleSave}>
+          <button type="button" className={styles.saveBtn} onClick={handleSave}>
             💾 ذخیره تنظیمات قالب
           </button>
         </div>
@@ -795,42 +789,44 @@ export function SiteLayoutStudio({ project, appearanceMode = "night", onOpenPage
       <div className={styles.mainContent}>
         {/* Left: Configuration form with tabs */}
         <div className={styles.editorPanel}>
-          <div className={styles.tabsBar} role="tablist">
-            <button
-              type="button"
-              className={`${styles.tabBtn} ${activeTab === "header" ? styles.tabBtnActive : ""}`}
-              onClick={() => setActiveTab("header")}
-            >
-              <span>▣</span> هدر و لوگو
-            </button>
-            <button
-              type="button"
-              className={`${styles.tabBtn} ${activeTab === "menu" ? styles.tabBtnActive : ""}`}
-              onClick={() => setActiveTab("menu")}
-            >
-              <span>☰</span> منو و ناوبری
-            </button>
-            <button
-              type="button"
-              className={`${styles.tabBtn} ${activeTab === "footer" ? styles.tabBtnActive : ""}`}
-              onClick={() => setActiveTab("footer")}
-            >
-              <span>☷</span> فوتر سایت
-            </button>
-            <button
-              type="button"
-              className={`${styles.tabBtn} ${activeTab === "theme" ? styles.tabBtnActive : ""}`}
-              onClick={() => setActiveTab("theme")}
-            >
-              <span>🎨</span> تم پروژه
-            </button>
-            <button
-              type="button"
-              className={`${styles.tabBtn} ${activeTab === "data-mode" ? styles.tabBtnActive : ""}`}
-              onClick={() => setActiveTab("data-mode")}
-            >
-              <span>🧪</span> محیط داده‌ها
-            </button>
+          <div className={styles.tabsContainer}>
+            <div className={styles.tabsBar} role="tablist">
+              <button
+                type="button"
+                className={`${styles.tabBtn} ${activeTab === "header" ? styles.tabBtnActive : ""}`}
+                onClick={() => setActiveTab("header")}
+              >
+                <span>▣</span> هدر و لوگو
+              </button>
+              <button
+                type="button"
+                className={`${styles.tabBtn} ${activeTab === "menu" ? styles.tabBtnActive : ""}`}
+                onClick={() => setActiveTab("menu")}
+              >
+                <span>☰</span> منو و ناوبری
+              </button>
+              <button
+                type="button"
+                className={`${styles.tabBtn} ${activeTab === "footer" ? styles.tabBtnActive : ""}`}
+                onClick={() => setActiveTab("footer")}
+              >
+                <span>☷</span> فوتر سایت
+              </button>
+              <button
+                type="button"
+                className={`${styles.tabBtn} ${activeTab === "theme" ? styles.tabBtnActive : ""}`}
+                onClick={() => setActiveTab("theme")}
+              >
+                <span>🎨</span> تم پروژه
+              </button>
+              <button
+                type="button"
+                className={`${styles.tabBtn} ${activeTab === "data-mode" ? styles.tabBtnActive : ""}`}
+                onClick={() => setActiveTab("data-mode")}
+              >
+                <span>🧪</span> محیط داده‌ها
+              </button>
+            </div>
           </div>
 
           <div className={styles.tabContent}>
@@ -2646,20 +2642,31 @@ export function SiteLayoutStudio({ project, appearanceMode = "night", onOpenPage
           </div>
         </div>
 
-        {/* Right: Real-time Live Interactive Preview */}
+        {/* Right: Real-time Live Interactive Preview (DesignPrompts Browser Window Chrome) */}
         <div className={styles.previewPanel}>
           <div className={styles.previewToolbar}>
-            <div className={styles.previewTitle}>
-              <span>👁️</span>
-              <span>پیش‌نمایش زنده و لحظه‌ای پوسته سایت</span>
+            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+              <div className={styles.windowControls} aria-hidden="true">
+                <span className={`${styles.windowDot} ${styles.windowDotRed}`} />
+                <span className={`${styles.windowDot} ${styles.windowDotYellow}`} />
+                <span className={`${styles.windowDot} ${styles.windowDotGreen}`} />
+              </div>
+              <div className={styles.previewAddressBar} dir="ltr">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <rect width="18" height="11" x="3" y="11" rx="2" ry="2"/>
+                  <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+                </svg>
+                <span>darkhoveyn.local{previewPath}</span>
+              </div>
             </div>
-            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
               <ThemeToggle mode={previewMode} onChange={setPreviewMode} />
               {currentPageSummary && onOpenPage && (
                 <button
                   type="button"
-                  className={ui.button}
-                  style={{ fontSize: "0.78rem", borderColor: "#38bdf8", color: "#38bdf8" }}
+                  className={styles.syncBtn}
+                  style={{ fontSize: "0.74rem", height: 28, padding: "0 10px", borderColor: "rgba(56, 189, 248, 0.4)", color: "#38bdf8" }}
                   onClick={() => onOpenPage(currentPageSummary)}
                   title="باز کردن این صفحه در صفحه ساز"
                 >
@@ -2668,8 +2675,8 @@ export function SiteLayoutStudio({ project, appearanceMode = "night", onOpenPage
               )}
               <button
                 type="button"
-                className={ui.button}
-                style={{ fontSize: "0.78rem" }}
+                className={styles.syncBtn}
+                style={{ fontSize: "0.74rem", height: 28, padding: "0 10px" }}
                 onClick={() => setPreviewPath("/")}
               >
                 بازنشانی مسیر
