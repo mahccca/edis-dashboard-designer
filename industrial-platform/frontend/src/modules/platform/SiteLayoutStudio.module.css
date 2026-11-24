@@ -121,6 +121,161 @@
   gap: 12px;
 }
 
+/* ========================================================
+   ACCORDION CARD STYLES
+   ======================================================== */
+.accordionCard {
+  background: rgba(255, 255, 255, 0.025);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 10px;
+  overflow: hidden;
+  transition: border-color 0.15s ease, background-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.accordionCard:hover {
+  border-color: rgba(255, 255, 255, 0.13);
+}
+
+.accordionCardOpen {
+  border-color: rgba(56, 189, 248, 0.28);
+  background: rgba(255, 255, 255, 0.03);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+}
+
+.accordionHeader {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  background: rgba(255, 255, 255, 0.015);
+  border: none;
+  border-bottom: 1px solid transparent;
+  color: inherit;
+  cursor: pointer;
+  text-align: right;
+  direction: rtl;
+  user-select: none;
+  transition: background-color 0.15s ease, border-color 0.15s ease;
+  gap: 12px;
+}
+
+.accordionHeader:hover {
+  background: rgba(56, 189, 248, 0.06);
+}
+
+.accordionHeaderOpen {
+  background: rgba(56, 189, 248, 0.05);
+  border-bottom-color: rgba(255, 255, 255, 0.06);
+}
+
+.accordionTitleGroup {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1;
+  min-width: 0;
+  flex-wrap: wrap;
+}
+
+.accordionTitle {
+  font-size: 0.86rem;
+  font-weight: 700;
+  color: #38bdf8;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.accordionBadge {
+  font-size: 0.72rem;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.06);
+  color: #94a3b8;
+  font-weight: 600;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  white-space: nowrap;
+}
+
+.accordionBadgeActive {
+  background: rgba(16, 185, 129, 0.15);
+  color: #34d399;
+  border-color: rgba(16, 185, 129, 0.35);
+}
+
+.accordionBadgeInactive {
+  background: rgba(239, 68, 68, 0.12);
+  color: #f87171;
+  border-color: rgba(239, 68, 68, 0.25);
+}
+
+.accordionTrailing {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+.accordionChevron {
+  width: 22px;
+  height: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.05);
+  color: #8b98a5;
+  font-size: 0.85rem;
+  transition: transform 0.2s ease, color 0.15s ease, background-color 0.15s ease;
+  user-select: none;
+}
+
+.accordionChevronOpen {
+  transform: rotate(180deg);
+  color: #38bdf8;
+  background: rgba(56, 189, 248, 0.15);
+}
+
+.accordionBody {
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  animation: accordionFadeIn 0.15s ease-out;
+}
+
+@keyframes accordionFadeIn {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.accordionToggleRow {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-bottom: -6px;
+}
+
+.accordionToggleAllBtn {
+  font-size: 0.74rem;
+  padding: 3px 10px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 6px;
+  color: #8b98a5;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  font-family: inherit;
+}
+
+.accordionToggleAllBtn:hover {
+  background: rgba(56, 189, 248, 0.1);
+  color: #38bdf8;
+  border-color: rgba(56, 189, 248, 0.3);
+}
+
 .cardTitle {
   font-size: 0.82rem;
   font-weight: 700;
