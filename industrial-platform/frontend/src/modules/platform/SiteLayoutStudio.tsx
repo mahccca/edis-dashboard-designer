@@ -116,14 +116,6 @@ const PLACEMENT_OPTIONS: Array<{
 
 const DEFAULT_HEADER_ORDER: HeaderSectionId[] = ["logo", "menu", "kpis", "extra", "themeToggle"];
 
-const TAB_SECTIONS: Record<Tab, string[]> = {
-  header: ["hdr_order", "hdr_theme_toggle", "hdr_global", "hdr_logo", "hdr_badge", "hdr_kpi"],
-  menu: ["menu_layout", "menu_items"],
-  footer: ["ftr_global", "ftr_content", "ftr_links"],
-  theme: ["thm_brand", "thm_default", "thm_radius", "thm_night", "thm_day", "thm_sync"],
-  "data-mode": ["data_env"],
-};
-
 interface AccordionCardProps {
   id: string;
   title: React.ReactNode;
@@ -212,55 +204,29 @@ export function SiteLayoutStudio({ project, appearanceMode = "night", onOpenPage
   const [savedToast, setSavedToast] = useState(false);
   const [apiTestResults, setApiTestResults] = useState<Record<string, { loading?: boolean; result?: string; error?: string }>>({});
 
-  // Accordion open/collapsed sections state
-  const [openSections, setOpenSections] = useState<Record<string, boolean>>({
-    hdr_order: true,
-    hdr_theme_toggle: true,
-    hdr_global: true,
-    hdr_logo: false,
-    hdr_badge: false,
-    hdr_kpi: false,
-    menu_layout: true,
-    menu_items: true,
-    ftr_global: true,
-    ftr_content: false,
-    ftr_links: false,
-    thm_brand: true,
-    thm_default: true,
-    thm_radius: false,
-    thm_night: false,
-    thm_day: false,
-    thm_sync: true,
-    data_env: true,
+  // Exclusive Single-Open Accordion State (per tab: only one section open at a time)
+  const [activeSectionByTab, setActiveSectionByTab] = useState<Record<Tab, string | null>>({
+    header: "hdr_theme_toggle",
+    menu: "menu_layout",
+    footer: "ftr_global",
+    theme: "thm_brand",
+    "data-mode": "data_env",
   });
 
-  const toggleSection = (id: string, defaultOpen = true) => {
-    setOpenSections((prev) => {
-      const current = prev[id] !== undefined ? prev[id] : defaultOpen;
-      return { ...prev, [id]: !current };
-    });
-  };
+  const isSectionOpen = (id: string) => activeSectionByTab[activeTab] === id;
 
-  const expandAllInTab = (tab: Tab) => {
-    const ids = TAB_SECTIONS[tab] || [];
-    setOpenSections((prev) => {
-      const next = { ...prev };
-      ids.forEach((id) => {
-        next[id] = true;
-      });
-      return next;
-    });
+  const toggleSection = (id: string) => {
+    setActiveSectionByTab((prev) => ({
+      ...prev,
+      [activeTab]: prev[activeTab] === id ? null : id,
+    }));
   };
 
   const collapseAllInTab = (tab: Tab) => {
-    const ids = TAB_SECTIONS[tab] || [];
-    setOpenSections((prev) => {
-      const next = { ...prev };
-      ids.forEach((id) => {
-        next[id] = false;
-      });
-      return next;
-    });
+    setActiveSectionByTab((prev) => ({
+      ...prev,
+      [tab]: null,
+    }));
   };
 
   // Drag & drop state for header blocks, menu items, header KPIs, and footer links
@@ -872,20 +838,19 @@ export function SiteLayoutStudio({ project, appearanceMode = "night", onOpenPage
             {activeTab === "header" && (
               <>
                 <div className={styles.accordionToggleRow}>
-                  <button
-                    type="button"
-                    className={styles.accordionToggleAllBtn}
-                    onClick={() => expandAllInTab("header")}
-                  >
-                    ➕ باز کردن همه
-                  </button>
-                  <button
-                    type="button"
-                    className={styles.accordionToggleAllBtn}
-                    onClick={() => collapseAllInTab("header")}
-                  >
-                    ➖ بستن همه
-                  </button>
+                  <span className={styles.accordionHintPill}>
+                    {activeSectionByTab.header ? "💡 بخش انتخابی باز است — سایر بخش‌ها فشرده شده‌اند" : "💡 روی هر بخش برای باز شدن کلیک کنید"}
+                  </span>
+                  {activeSectionByTab.header !== null && (
+                    <button
+                      type="button"
+                      className={styles.accordionToggleAllBtn}
+                      onClick={() => collapseAllInTab("header")}
+                      title="بستن بخش باز و نمایش تمام هدرها"
+                    >
+                      ➖ بستن بخش باز
+                    </button>
+                  )}
                 </div>
 
                 <AccordionCard
@@ -893,8 +858,8 @@ export function SiteLayoutStudio({ project, appearanceMode = "night", onOpenPage
                   title="🔀 چیدمان و ترتیب المان‌های هدر (Drag & Drop Reorder)"
                   badge={`${currentHeaderOrder.length} المان`}
                   badgeActive={true}
-                  isOpen={Boolean(openSections.hdr_order)}
-                  onToggle={() => toggleSection("hdr_order", true)}
+                  isOpen={isSectionOpen("hdr_order")}
+                  onToggle={() => toggleSection("hdr_order")}
                 >
                   <div className={ui.hint} style={{ margin: "2px 0 8px 0" }}>
                     برای تغییر ترتیب افقی قرارگیری المان‌ها در نوار هدر، کارت‌ها را با ماوس بکشید و جابجا کنید (Drag & Drop) یا از دکمه‌های ↑ و ↓ استفاده فرمایید.
@@ -1020,8 +985,8 @@ export function SiteLayoutStudio({ project, appearanceMode = "night", onOpenPage
                     )?.title ?? "هدر"
                   }
                   badgeActive={true}
-                  isOpen={Boolean(openSections.hdr_theme_toggle)}
-                  onToggle={() => toggleSection("hdr_theme_toggle", true)}
+                  isOpen={isSectionOpen("hdr_theme_toggle")}
+                  onToggle={() => toggleSection("hdr_theme_toggle")}
                 >
                   <div className={ui.hint} style={{ margin: "2px 0 8px 0" }}>
                     موقعیت دکمه سوئیچ بین حالت تیره (Night) و روشن (Day) را در ساختار سایت مشخص کنید:
@@ -1060,8 +1025,8 @@ export function SiteLayoutStudio({ project, appearanceMode = "night", onOpenPage
                   title="📌 هدر کلی سایت (Global Site Header)"
                   badge={layout.header.enabled ? "روشن" : "خاموش"}
                   badgeActive={layout.header.enabled}
-                  isOpen={Boolean(openSections.hdr_global)}
-                  onToggle={() => toggleSection("hdr_global", true)}
+                  isOpen={isSectionOpen("hdr_global")}
+                  onToggle={() => toggleSection("hdr_global")}
                 >
                   <label className={styles.toggleLabel}>
                     <input
@@ -1164,8 +1129,8 @@ export function SiteLayoutStudio({ project, appearanceMode = "night", onOpenPage
                   title="⚡ تنظیمات لوگو و برند (Logo & Branding)"
                   badge={layout.header.logo.enabled ? "لوگو فعال" : "غیرفعال"}
                   badgeActive={layout.header.logo.enabled}
-                  isOpen={Boolean(openSections.hdr_logo)}
-                  onToggle={() => toggleSection("hdr_logo", false)}
+                  isOpen={isSectionOpen("hdr_logo")}
+                  onToggle={() => toggleSection("hdr_logo")}
                 >
                   <label className={styles.toggleLabel}>
                     <input
@@ -1340,8 +1305,8 @@ export function SiteLayoutStudio({ project, appearanceMode = "night", onOpenPage
                   title="🔔 نشانگر یا متن اختصاصی هدر (Status Badge)"
                   badge={layout.header.extraText.enabled ? "بج فعال" : "غیرفعال"}
                   badgeActive={layout.header.extraText.enabled}
-                  isOpen={Boolean(openSections.hdr_badge)}
-                  onToggle={() => toggleSection("hdr_badge", false)}
+                  isOpen={isSectionOpen("hdr_badge")}
+                  onToggle={() => toggleSection("hdr_badge")}
                 >
                   <label className={styles.toggleLabel}>
                     <input
@@ -1406,8 +1371,8 @@ export function SiteLayoutStudio({ project, appearanceMode = "night", onOpenPage
                       + افزودن شاخص KPI
                     </button>
                   }
-                  isOpen={Boolean(openSections.hdr_kpi)}
-                  onToggle={() => toggleSection("hdr_kpi", false)}
+                  isOpen={isSectionOpen("hdr_kpi")}
+                  onToggle={() => toggleSection("hdr_kpi")}
                 >
                   <p className={ui.hint} style={{ margin: "2px 0 12px 0" }}>
                     می‌توانید المان‌های مانیتورینگ زنده (مثل توان مصرفی، فشار، دما و وضعیت سیستم) را مستقیماً در نوار هدر قرار دهید.
@@ -1684,20 +1649,19 @@ export function SiteLayoutStudio({ project, appearanceMode = "night", onOpenPage
             {activeTab === "menu" && (
               <>
                 <div className={styles.accordionToggleRow}>
-                  <button
-                    type="button"
-                    className={styles.accordionToggleAllBtn}
-                    onClick={() => expandAllInTab("menu")}
-                  >
-                    ➕ باز کردن همه
-                  </button>
-                  <button
-                    type="button"
-                    className={styles.accordionToggleAllBtn}
-                    onClick={() => collapseAllInTab("menu")}
-                  >
-                    ➖ بستن همه
-                  </button>
+                  <span className={styles.accordionHintPill}>
+                    {activeSectionByTab.menu ? "💡 بخش انتخابی باز است — سایر بخش‌ها فشرده شده‌اند" : "💡 روی هر بخش برای باز شدن کلیک کنید"}
+                  </span>
+                  {activeSectionByTab.menu !== null && (
+                    <button
+                      type="button"
+                      className={styles.accordionToggleAllBtn}
+                      onClick={() => collapseAllInTab("menu")}
+                      title="بستن بخش باز و نمایش تمام هدرها"
+                    >
+                      ➖ بستن بخش باز
+                    </button>
+                  )}
                 </div>
 
                 <AccordionCard
@@ -1711,8 +1675,8 @@ export function SiteLayoutStudio({ project, appearanceMode = "night", onOpenPage
                       : "نوار پایین"
                   }
                   badgeActive={true}
-                  isOpen={Boolean(openSections.menu_layout)}
-                  onToggle={() => toggleSection("menu_layout", true)}
+                  isOpen={isSectionOpen("menu_layout")}
+                  onToggle={() => toggleSection("menu_layout")}
                 >
                   <label className={ui.field}>
                     <span className={ui.label}>موقعیت و چینش منو در صفحه:</span>
@@ -1830,8 +1794,8 @@ export function SiteLayoutStudio({ project, appearanceMode = "night", onOpenPage
                       + افزودن آیتم
                     </button>
                   }
-                  isOpen={Boolean(openSections.menu_items)}
-                  onToggle={() => toggleSection("menu_items", true)}
+                  isOpen={isSectionOpen("menu_items")}
+                  onToggle={() => toggleSection("menu_items")}
                 >
                   <div className={styles.itemList}>
                     {layout.header.menu.items.map((item, index) => {
@@ -1985,20 +1949,19 @@ export function SiteLayoutStudio({ project, appearanceMode = "night", onOpenPage
             {activeTab === "footer" && (
               <>
                 <div className={styles.accordionToggleRow}>
-                  <button
-                    type="button"
-                    className={styles.accordionToggleAllBtn}
-                    onClick={() => expandAllInTab("footer")}
-                  >
-                    ➕ باز کردن همه
-                  </button>
-                  <button
-                    type="button"
-                    className={styles.accordionToggleAllBtn}
-                    onClick={() => collapseAllInTab("footer")}
-                  >
-                    ➖ بستن همه
-                  </button>
+                  <span className={styles.accordionHintPill}>
+                    {activeSectionByTab.footer ? "💡 بخش انتخابی باز است — سایر بخش‌ها فشرده شده‌اند" : "💡 روی هر بخش برای باز شدن کلیک کنید"}
+                  </span>
+                  {activeSectionByTab.footer !== null && (
+                    <button
+                      type="button"
+                      className={styles.accordionToggleAllBtn}
+                      onClick={() => collapseAllInTab("footer")}
+                      title="بستن بخش باز و نمایش تمام هدرها"
+                    >
+                      ➖ بستن بخش باز
+                    </button>
+                  )}
                 </div>
 
                 <AccordionCard
@@ -2006,8 +1969,8 @@ export function SiteLayoutStudio({ project, appearanceMode = "night", onOpenPage
                   title="☷ فوتر سایت (Global Footer)"
                   badge={layout.footer.enabled ? "روشن" : "خاموش"}
                   badgeActive={layout.footer.enabled}
-                  isOpen={Boolean(openSections.ftr_global)}
-                  onToggle={() => toggleSection("ftr_global", true)}
+                  isOpen={isSectionOpen("ftr_global")}
+                  onToggle={() => toggleSection("ftr_global")}
                 >
                   <label className={styles.toggleLabel}>
                     <input
@@ -2079,8 +2042,8 @@ export function SiteLayoutStudio({ project, appearanceMode = "night", onOpenPage
                   title="📝 محتوا و متن‌های فوتر"
                   badge={layout.footer.showStatusIndicator ? "وضعیت سرویس فعال" : "محتوا"}
                   badgeActive={layout.footer.showStatusIndicator}
-                  isOpen={Boolean(openSections.ftr_content)}
-                  onToggle={() => toggleSection("ftr_content", false)}
+                  isOpen={isSectionOpen("ftr_content")}
+                  onToggle={() => toggleSection("ftr_content")}
                 >
                   <label className={ui.field}>
                     <span className={ui.label}>متن کپی‌رایت:</span>
@@ -2143,8 +2106,8 @@ export function SiteLayoutStudio({ project, appearanceMode = "night", onOpenPage
                       + افزودن لینک فوتر
                     </button>
                   }
-                  isOpen={Boolean(openSections.ftr_links)}
-                  onToggle={() => toggleSection("ftr_links", false)}
+                  isOpen={isSectionOpen("ftr_links")}
+                  onToggle={() => toggleSection("ftr_links")}
                 >
                   <div className={ui.hint} style={{ margin: "2px 0 8px 0" }}>
                     لینک‌های مفید در پایین سایت را مرتب کرده و با ماوس بکشید تا ترتیبشان جابجا شود (Drag & Drop).
@@ -2287,20 +2250,19 @@ export function SiteLayoutStudio({ project, appearanceMode = "night", onOpenPage
             {activeTab === "theme" && (
               <>
                 <div className={styles.accordionToggleRow}>
-                  <button
-                    type="button"
-                    className={styles.accordionToggleAllBtn}
-                    onClick={() => expandAllInTab("theme")}
-                  >
-                    ➕ باز کردن همه
-                  </button>
-                  <button
-                    type="button"
-                    className={styles.accordionToggleAllBtn}
-                    onClick={() => collapseAllInTab("theme")}
-                  >
-                    ➖ بستن همه
-                  </button>
+                  <span className={styles.accordionHintPill}>
+                    {activeSectionByTab.theme ? "💡 بخش انتخابی باز است — سایر بخش‌ها فشرده شده‌اند" : "💡 روی هر بخش برای باز شدن کلیک کنید"}
+                  </span>
+                  {activeSectionByTab.theme !== null && (
+                    <button
+                      type="button"
+                      className={styles.accordionToggleAllBtn}
+                      onClick={() => collapseAllInTab("theme")}
+                      title="بستن بخش باز و نمایش تمام هدرها"
+                    >
+                      ➖ بستن بخش باز
+                    </button>
+                  )}
                 </div>
 
                 <AccordionCard
@@ -2308,8 +2270,8 @@ export function SiteLayoutStudio({ project, appearanceMode = "night", onOpenPage
                   title="🎨 رنگ اصلی برند پروژه (Primary Brand Color)"
                   badge={layout.theme.brandColor}
                   badgeActive={true}
-                  isOpen={Boolean(openSections.thm_brand)}
-                  onToggle={() => toggleSection("thm_brand", true)}
+                  isOpen={isSectionOpen("thm_brand")}
+                  onToggle={() => toggleSection("thm_brand")}
                 >
                   <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 10 }}>
                     {BRAND_PALETTES.map((p) => (
@@ -2354,8 +2316,8 @@ export function SiteLayoutStudio({ project, appearanceMode = "night", onOpenPage
                   title="🌓 حالت پیش‌فرض نمایش پروژه (Default Appearance)"
                   badge={layout.theme.defaultAppearance === "night" ? "شب" : layout.theme.defaultAppearance === "day" ? "روز" : "خودکار"}
                   badgeActive={true}
-                  isOpen={Boolean(openSections.thm_default)}
-                  onToggle={() => toggleSection("thm_default", true)}
+                  isOpen={isSectionOpen("thm_default")}
+                  onToggle={() => toggleSection("thm_default")}
                 >
                   <div style={{ display: "flex", gap: 8 }}>
                     {([
@@ -2381,8 +2343,8 @@ export function SiteLayoutStudio({ project, appearanceMode = "night", onOpenPage
                   title="📐 استایل گوشه‌ها (Border Radius)"
                   badge={layout.theme.borderRadius ?? "md"}
                   badgeActive={true}
-                  isOpen={Boolean(openSections.thm_radius)}
-                  onToggle={() => toggleSection("thm_radius", false)}
+                  isOpen={isSectionOpen("thm_radius")}
+                  onToggle={() => toggleSection("thm_radius")}
                 >
                   <div style={{ display: "flex", gap: 8 }}>
                     {(["sm", "md", "lg", "full"] as const).map((r) => (
@@ -2402,8 +2364,8 @@ export function SiteLayoutStudio({ project, appearanceMode = "night", onOpenPage
                 <AccordionCard
                   id="thm_night"
                   title="🌙 رنگ‌های حالت شب (Night Appearance)"
-                  isOpen={Boolean(openSections.thm_night)}
-                  onToggle={() => toggleSection("thm_night", false)}
+                  isOpen={isSectionOpen("thm_night")}
+                  onToggle={() => toggleSection("thm_night")}
                 >
                   <label className={ui.field}>
                     <span className={ui.label}>پس‌زمینه اصلی:</span>
@@ -2450,8 +2412,8 @@ export function SiteLayoutStudio({ project, appearanceMode = "night", onOpenPage
                 <AccordionCard
                   id="thm_day"
                   title="☀️ رنگ‌های حالت روز (Day Appearance)"
-                  isOpen={Boolean(openSections.thm_day)}
-                  onToggle={() => toggleSection("thm_day", false)}
+                  isOpen={isSectionOpen("thm_day")}
+                  onToggle={() => toggleSection("thm_day")}
                 >
                   <label className={ui.field}>
                     <span className={ui.label}>پس‌زمینه اصلی:</span>
@@ -2498,8 +2460,8 @@ export function SiteLayoutStudio({ project, appearanceMode = "night", onOpenPage
                 <AccordionCard
                   id="thm_sync"
                   title="🌐 اعمال و هماهنگ‌سازی سراسری تم روی تمام صفحات (Sync Theme to All Pages)"
-                  isOpen={Boolean(openSections.thm_sync)}
-                  onToggle={() => toggleSection("thm_sync", true)}
+                  isOpen={isSectionOpen("thm_sync")}
+                  onToggle={() => toggleSection("thm_sync")}
                   style={{
                     border: "1px solid rgba(56, 189, 248, 0.4)",
                     background: "rgba(14, 165, 233, 0.06)",
@@ -2545,20 +2507,19 @@ export function SiteLayoutStudio({ project, appearanceMode = "night", onOpenPage
             {activeTab === "data-mode" && (
               <>
                 <div className={styles.accordionToggleRow}>
-                  <button
-                    type="button"
-                    className={styles.accordionToggleAllBtn}
-                    onClick={() => expandAllInTab("data-mode")}
-                  >
-                    ➕ باز کردن همه
-                  </button>
-                  <button
-                    type="button"
-                    className={styles.accordionToggleAllBtn}
-                    onClick={() => collapseAllInTab("data-mode")}
-                  >
-                    ➖ بستن همه
-                  </button>
+                  <span className={styles.accordionHintPill}>
+                    {activeSectionByTab["data-mode"] ? "💡 بخش انتخابی باز است" : "💡 روی بخش برای باز شدن کلیک کنید"}
+                  </span>
+                  {activeSectionByTab["data-mode"] !== null && (
+                    <button
+                      type="button"
+                      className={styles.accordionToggleAllBtn}
+                      onClick={() => collapseAllInTab("data-mode")}
+                      title="بستن بخش باز و نمایش تمام هدرها"
+                    >
+                      ➖ بستن بخش باز
+                    </button>
+                  )}
                 </div>
 
                 <AccordionCard
@@ -2572,8 +2533,8 @@ export function SiteLayoutStudio({ project, appearanceMode = "night", onOpenPage
                       : "خودکار (Auto)"
                   }
                   badgeActive={layout.dataEnvironment === "live"}
-                  isOpen={Boolean(openSections.data_env)}
-                  onToggle={() => toggleSection("data_env", true)}
+                  isOpen={isSectionOpen("data_env")}
+                  onToggle={() => toggleSection("data_env")}
                 >
                   <p className={ui.muted} style={{ fontSize: "0.84rem", margin: "0 0 16px", lineHeight: 1.6 }}>
                     در سامانه‌های مانیتورینگ صنعتی و SCADA، تفکیک داده‌های شبیه‌سازی‌شده (Test / Simulation) از داده‌های واقعی و عملیاتی نیروگاه (Live Data) از الزامات حیاتی امنیت و ایمنی فرآیند است.
