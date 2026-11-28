@@ -69,9 +69,20 @@ export function Editor({ project, page, onBack }: { project: Project; page: Page
     hintId: string;
     place: "before" | "after" | "inside";
   } | null>(null);
+  const [showHistory, setShowHistory] = useState(false);
+  const [publishedCount, setPublishedCount] = useState<number>(0);
   const layersSize = usePanelWidth("ip.studio.layersWidth", 280, 200, 640);
 
   const [siteLayoutKey, setSiteLayoutKey] = useState(0);
+
+  useEffect(() => {
+    if (!showHistory) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setShowHistory(false);
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [showHistory]);
 
   useEffect(() => {
     const handleLayoutChange = () => setSiteLayoutKey((k) => k + 1);
@@ -99,6 +110,10 @@ export function Editor({ project, page, onBack }: { project: Project; page: Page
       }
     }
     setRefreshKey((k) => k + 1);
+    void http
+      .get<{ items: PublishedVersion[] }>(`/pages/${page.id}/published-versions`)
+      .then(({ data }) => setPublishedCount(data.items.length))
+      .catch(() => {});
   }, [page.id, siteLayout.theme.defaultAppearance]);
 
   useEffect(() => {
@@ -390,6 +405,7 @@ export function Editor({ project, page, onBack }: { project: Project; page: Page
       const revisionNo = Number(/rev-(\d+)/.exec(etag ?? "")?.[1]);
       const { data } = await http.post<PublishedVersion>(`/pages/${page.id}/publish`, { body: { revisionNo } });
       setRefreshKey((k) => k + 1);
+      setPublishedCount((c) => c + 1);
       setStatus({ kind: "saved", text: `منتشر شد — نسخهٔ ${data.versionNo} (از ویرایش ${data.sourceRevisionNo})` });
     } catch (e) {
       if (e instanceof ApiError && e.status === 422) setStatus({ kind: "invalid", errors: e.problem.errors ?? [] });
@@ -490,10 +506,27 @@ export function Editor({ project, page, onBack }: { project: Project; page: Page
           <button disabled={!doc.past.length} onClick={() => setDoc(history.undo(doc))} title="واگرد" aria-label="واگرد">↶</button>
           <button disabled={!doc.future.length} onClick={() => setDoc(history.redo(doc))} title="ازنو" aria-label="ازنو">↷</button>
         </div>
-        <div className={styles.savedPill} title={dirty ? "تغییرات ذخیره‌نشده دارید" : "تمامی تغییرات ذخیره شده‌اند"}>
+        <button
+          type="button"
+          className={`${styles.savedPill} ${showHistory ? styles.historyToggleBtnActive : ""}`}
+          onClick={() => setShowHistory((prev) => !prev)}
+          title={dirty ? "تغییرات ذخیره‌نشده دارید — کلیک برای مشاهده تاریخچه نسخه‌ها" : "تمامی تغییرات ذخیره شده‌اند — کلیک برای مشاهده تاریخچه نسخه‌ها"}
+          aria-expanded={showHistory}
+        >
           <span className={`${styles.savedPillDot} ${dirty ? styles.savedPillDotDirty : ""}`} />
           <span>{dirty ? "ذخیره نشده" : "Saved pages"}</span>
-        </div>
+        </button>
+        <button
+          type="button"
+          className={`${styles.historyToggleBtn} ${showHistory ? styles.historyToggleBtnActive : ""}`}
+          onClick={() => setShowHistory((prev) => !prev)}
+          title="مشاهده تاریخچه نسخه‌های منتشرشده و ویرایش‌ها (کلیک برای نمایش یا مخفی کردن)"
+          aria-expanded={showHistory}
+        >
+          <span aria-hidden="true">🕒</span>
+          <span>تاریخچه نسخه‌ها</span>
+          {publishedCount > 0 && <span className={styles.historyBadge}>{publishedCount}</span>}
+        </button>
         <button
           type="button"
           className={styles.resetBtn}
@@ -687,9 +720,32 @@ export function Editor({ project, page, onBack }: { project: Project; page: Page
             onDuplicate={duplicateNode}
             onRemove={removeSelectedNode}
           />
-          <VersionsPanel pageId={page.id} refreshKey={refreshKey} canRestore={!dirty} onRestore={restore} onActivate={activate} />
         </aside>
       </div>
+      {showHistory && (
+        <div
+          className={styles.historyDrawerOverlay}
+          onClick={() => setShowHistory(false)}
+        >
+          <div onClick={(e) => e.stopPropagation()} style={{ height: "100%", display: "flex" }}>
+            <VersionsPanel
+              pageId={page.id}
+              refreshKey={refreshKey}
+              canRestore={!dirty}
+              onRestore={(rev) => {
+                void restore(rev);
+                setShowHistory(false);
+              }}
+              onActivate={(ver) => {
+                void activate(ver);
+                setShowHistory(false);
+              }}
+              onClose={() => setShowHistory(false)}
+              onPublishedCountChange={setPublishedCount}
+            />
+          </div>
+        </div>
+      )}
       {showSiteLayout && (
         <div style={{
           position: "fixed",
