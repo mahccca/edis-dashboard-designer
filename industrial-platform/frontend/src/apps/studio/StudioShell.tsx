@@ -2,6 +2,19 @@ import { useEffect, useState, type ReactNode } from "react";
 import type { Project } from "../../shared/api/types";
 import type { AppearanceMode } from "../../shared/style-engine/parts";
 import { getProjectDataMode } from "../../shared/site-layout";
+import {
+  StudioLogoIcon,
+  ProjectsIcon,
+  ProjectBadgeIcon,
+  PagesIcon,
+  SiteLayoutIcon,
+  DataSourcesIcon,
+  ComponentsIcon,
+  SecurityIcon,
+  SunIcon,
+  MoonIcon,
+  LogoutIcon,
+} from "./StudioIcons";
 import styles from "./StudioShell.module.css";
 
 export type StudioNavId = "projects" | "pages" | "site-layout" | "data-sources" | "components" | "editor";
@@ -50,7 +63,7 @@ export function StudioShell({
         {/* Brand Icon */}
         <div className={styles.itemWrapper}>
           <div className={styles.brandLogo} aria-label="پلتفرم صنعتی Industrial Platform Studio">
-            <span className={styles.brandIcon} aria-hidden="true">⚡</span>
+            <StudioLogoIcon size={22} className={styles.brandIcon} />
           </div>
           <div className={styles.tooltip} role="tooltip">
             <span className={styles.tooltipTitle}>Industrial Platform Studio</span>
@@ -70,7 +83,7 @@ export function StudioShell({
               onClick={() => onNavigate("projects")}
               aria-label="پروژه‌ها"
             >
-              <span className={styles.itemIcon} aria-hidden="true">▣</span>
+              <ProjectsIcon size={20} className={styles.itemIcon} />
             </button>
             <div className={styles.tooltip} role="tooltip">
               <span className={styles.tooltipTitle}>پروژه‌ها</span>
@@ -85,7 +98,7 @@ export function StudioShell({
                 className={styles.projectPill}
                 aria-label={`پروژه جاری: ${project.name}`}
               >
-                <span className={styles.projectIcon} aria-hidden="true">🏭</span>
+                <ProjectBadgeIcon size={20} className={styles.projectIcon} />
                 <span
                   className={styles.dataModeDot}
                   data-mode={dataMode}
@@ -119,7 +132,7 @@ export function StudioShell({
               onClick={() => onNavigate("pages")}
               aria-label="صفحات"
             >
-              <span className={styles.itemIcon} aria-hidden="true">▦</span>
+              <PagesIcon size={20} className={styles.itemIcon} />
               {editor && <span className={styles.editorIndicator} title="در حال ویرایش صفحه" />}
             </button>
             <div className={styles.tooltip} role="tooltip">
@@ -143,7 +156,7 @@ export function StudioShell({
               onClick={() => onNavigate("site-layout")}
               aria-label="قالب و تم سایت"
             >
-              <span className={styles.itemIcon} aria-hidden="true">🎨</span>
+              <SiteLayoutIcon size={20} className={styles.itemIcon} />
             </button>
             <div className={styles.tooltip} role="tooltip">
               <span className={styles.tooltipTitle}>قالب و تم سایت</span>
@@ -162,7 +175,7 @@ export function StudioShell({
               onClick={() => onNavigate("data-sources")}
               aria-label="منابع داده"
             >
-              <span className={styles.itemIcon} aria-hidden="true">◎</span>
+              <DataSourcesIcon size={20} className={styles.itemIcon} />
             </button>
             <div className={styles.tooltip} role="tooltip">
               <span className={styles.tooltipTitle}>منابع داده</span>
@@ -181,7 +194,7 @@ export function StudioShell({
               onClick={() => onNavigate("components")}
               aria-label="کامپوننت‌ها"
             >
-              <span className={styles.itemIcon} aria-hidden="true">◇</span>
+              <ComponentsIcon size={20} className={styles.itemIcon} />
             </button>
             <div className={styles.tooltip} role="tooltip">
               <span className={styles.tooltipTitle}>کامپوننت‌ها</span>
@@ -203,7 +216,7 @@ export function StudioShell({
                 onClick={onOpenCredentials}
                 aria-label="امنیت و حساب کاربری"
               >
-                <span className={styles.itemIcon} aria-hidden="true">⚙️</span>
+                <SecurityIcon size={20} className={styles.itemIcon} />
               </button>
               <div className={styles.tooltip} role="tooltip">
                 <span className={styles.tooltipTitle}>حساب کاربری: {userName}</span>
@@ -220,9 +233,11 @@ export function StudioShell({
               onClick={() => onModeChange(mode === "night" ? "day" : "night")}
               aria-label={mode === "night" ? "تغییر به تم روز" : "تغییر به تم شب"}
             >
-              <span className={styles.itemIcon} aria-hidden="true">
-                {mode === "night" ? "☀️" : "🌙"}
-              </span>
+              {mode === "night" ? (
+                <SunIcon size={20} className={styles.itemIcon} />
+              ) : (
+                <MoonIcon size={20} className={styles.itemIcon} />
+              )}
             </button>
             <div className={styles.tooltip} role="tooltip">
               <span className={styles.tooltipTitle}>
@@ -240,7 +255,7 @@ export function StudioShell({
               onClick={onLogout}
               aria-label="خروج"
             >
-              <span className={styles.itemIcon} aria-hidden="true">⎋</span>
+              <LogoutIcon size={20} className={styles.itemIcon} />
             </button>
             <div className={styles.tooltip} role="tooltip">
               <span className={styles.tooltipTitle}>خروج از سیستم</span>

@@ -50,6 +50,43 @@ function PencilIcon() {
   );
 }
 
+function UndoIcon() {
+  return (
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M3 7v6h6" />
+      <path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13" />
+    </svg>
+  );
+}
+
+function RedoIcon() {
+  return (
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M21 7v6h-6" />
+      <path d="M3 17a9 9 0 0 1 9-9 9 9 0 0 1 6 2.3l3 2.7" />
+    </svg>
+  );
+}
+
+function SaveIcon() {
+  return (
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" />
+      <polyline points="17 21 17 13 7 13 7 21" />
+      <polyline points="7 3 7 8 15 8" />
+    </svg>
+  );
+}
+
+function ClockIcon() {
+  return (
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <circle cx="12" cy="12" r="10" />
+      <polyline points="12 6 12 12 16 14" />
+    </svg>
+  );
+}
+
 export function Editor({ project, page, onBack }: { project: Project; page: PageSummary; onBack: () => void }) {
   const [doc, setDoc] = useState<History<DocumentContent> | null>(null);
   const [saved, setSaved] = useState<DocumentContent | null>(null);
@@ -503,8 +540,12 @@ export function Editor({ project, page, onBack }: { project: Project; page: Page
           </button>
         </div>
         <div className={styles.historyGroup}>
-          <button disabled={!doc.past.length} onClick={() => setDoc(history.undo(doc))} title="واگرد" aria-label="واگرد">↶</button>
-          <button disabled={!doc.future.length} onClick={() => setDoc(history.redo(doc))} title="ازنو" aria-label="ازنو">↷</button>
+          <button disabled={!doc.past.length} onClick={() => setDoc(history.undo(doc))} title="واگرد" aria-label="واگرد">
+            <UndoIcon />
+          </button>
+          <button disabled={!doc.future.length} onClick={() => setDoc(history.redo(doc))} title="ازنو" aria-label="ازنو">
+            <RedoIcon />
+          </button>
         </div>
         <button
           type="button"
@@ -523,7 +564,7 @@ export function Editor({ project, page, onBack }: { project: Project; page: Page
           title="مشاهده تاریخچه نسخه‌های منتشرشده و ویرایش‌ها (کلیک برای نمایش یا مخفی کردن)"
           aria-expanded={showHistory}
         >
-          <span aria-hidden="true">🕒</span>
+          <ClockIcon />
           <span>تاریخچه نسخه‌ها</span>
           {publishedCount > 0 && <span className={styles.historyBadge}>{publishedCount}</span>}
         </button>
@@ -545,7 +586,9 @@ export function Editor({ project, page, onBack }: { project: Project; page: Page
           aria-label="ذخیره"
         >
           {dirty && <span className={styles.dirtyBadge} aria-hidden="true" />}
-          <span aria-hidden="true" style={{ marginInlineEnd: 4 }}>💾</span>
+          <span aria-hidden="true" style={{ marginInlineEnd: 4, display: "inline-flex", alignItems: "center" }}>
+            <SaveIcon />
+          </span>
           ذخیره
         </button>
         <button className={styles.backBtn} disabled={dirty || status.kind === "busy"} onClick={publish}

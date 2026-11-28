@@ -14,6 +14,51 @@ interface Props {
   onPublishedCountChange?: (count: number) => void;
 }
 
+function ClockIcon() {
+  return (
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <circle cx="12" cy="12" r="10" />
+      <polyline points="12 6 12 12 16 14" />
+    </svg>
+  );
+}
+
+function PackageIcon() {
+  return (
+    <svg width="38" height="38" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="m7.5 4.27 9 5.15" />
+      <path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z" />
+      <path d="m3.3 7 8.7 5 8.7-5" />
+      <path d="M12 22V12" />
+    </svg>
+  );
+}
+
+function CheckIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <polyline points="20 6 9 17 4 12" />
+    </svg>
+  );
+}
+
+function ZapIcon() {
+  return (
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
+    </svg>
+  );
+}
+
+function RotateCcwIcon() {
+  return (
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+      <path d="M3 3v5h5" />
+    </svg>
+  );
+}
+
 function formatDate(iso: string | null | undefined): string {
   if (!iso) return "—";
   try {
@@ -62,7 +107,7 @@ export function VersionsPanel({
       <div className={styles.historyHeader}>
         <div className={styles.historyTitleGroup}>
           <div className={styles.historyTitle}>
-            <span aria-hidden="true">🕒</span>
+            <ClockIcon />
             <span>تاریخچه و نسخه‌ها</span>
           </div>
           <div className={styles.historySubtitle}>
@@ -115,7 +160,9 @@ export function VersionsPanel({
           <div className={styles.historyTimeline}>
             {published.length === 0 ? (
               <div className={styles.historyEmptyState}>
-                <div className={styles.historyEmptyIcon} aria-hidden="true">📦</div>
+                <div className={styles.historyEmptyIcon} aria-hidden="true">
+                  <PackageIcon />
+                </div>
                 <div><strong>هنوز نسخه‌ای از این صفحه منتشر نشده است.</strong></div>
                 <div>
                   پس از اعمال تغییرات، با کلیک روی دکمه «انتشار» در بالای صفحه می‌توانید نسخه زنده و قابل مشاهده در ران‌تایم بسازید.
@@ -157,8 +204,8 @@ export function VersionsPanel({
                   <div className={styles.historyCardActions}>
                     {v.isLive ? (
                       <span className={styles.historyLiveBadge}>
-                        <span aria-hidden="true">✓</span>
-                        نسخهٔ فعال جاری سایت
+                        <CheckIcon />
+                        <span>نسخهٔ فعال جاری سایت</span>
                       </span>
                     ) : (
                       <button
@@ -167,7 +214,8 @@ export function VersionsPanel({
                         onClick={() => onActivate(v.versionNo)}
                         title="فعال‌سازی این نسخه به عنوان نسخه اصلی سایت"
                       >
-                        ⚡ فعال‌سازی این نسخه
+                        <ZapIcon />
+                        <span>فعال‌سازی این نسخه</span>
                       </button>
                     )}
                   </div>
@@ -229,7 +277,8 @@ export function VersionsPanel({
                             : "ابتدا تغییرات فعلی را ذخیره یا ریست کنید"
                         }
                       >
-                        ↺ بازگردانی به این ویرایش
+                        <RotateCcwIcon />
+                        <span>بازگردانی به این ویرایش</span>
                       </button>
                     )}
                   </div>

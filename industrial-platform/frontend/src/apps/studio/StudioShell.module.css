@@ -160,8 +160,25 @@
 }
 
 .itemIcon {
-  font-size: 1.15rem;
-  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: transform 0.16s ease;
+}
+
+.brandIcon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #f5a524;
+}
+
+.projectIcon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #f5a524;
 }
 
 .logoutBtn:hover:not(:disabled) {
