@@ -111,6 +111,7 @@ export function Editor({ project, page, onBack }: { project: Project; page: Page
     () => (present ? [...new Set([...walk(present.root)].flatMap(({ node }) => Object.values(node.bindings ?? {}).map((b) => b.bindingId)))] : []),
     [present],
   );
+  const allNodes = useMemo(() => (present ? [...walk(present.root)].map((w) => w.node) : []), [present]);
   const values = useBindingValues(bindingIds);
   const currentDataMode = siteLayout.dataEnvironment ?? "auto";
   const anyTestData =
@@ -163,6 +164,8 @@ export function Editor({ project, page, onBack }: { project: Project; page: Page
 
   const commit = (next: DocumentContent) => setDoc((h) => (h ? history.push(h, next) : h));
   const selected = selectedId ? findNode(present, selectedId)?.node ?? null : null;
+  const totalNodes = allNodes.length;
+  const selectedIndex = selected ? allNodes.findIndex((n) => n.id === selected.id) + 1 : 0;
   const styleNode = styleTarget ? findNode(present, styleTarget.nodeId)?.node ?? null : null;
   const specFor = (n: DocNode | null): ComponentSpec | undefined =>
     n?.component ? catalog.components.find((c) => c.id === n.component!.definitionId && c.version === n.component!.version) : undefined;
@@ -213,6 +216,63 @@ export function Editor({ project, page, onBack }: { project: Project; page: Page
     } catch (e) {
       setStatus({ kind: "error", text: e instanceof ConstraintError ? STRUCTURE_ERROR : String(e) });
     }
+  };
+
+  const handleReset = () => {
+    if (!saved || !dirty) return;
+    setDoc(history.init(saved));
+    setSelectedId(null);
+    setStatus({ kind: "saved", text: "تمامی تغییرات ذخیره‌نشده لغو شدند و صفحه به حالت قبل بازگشت." });
+  };
+
+  const duplicateNode = (nodeId: string) => {
+    if (!present || nodeId === present.root.id) return;
+    const existingIds = collectIds(present);
+    let nextNum = 1;
+    const generateId = (prefix: string) => {
+      let id = `${prefix}-${Date.now().toString(36)}-${nextNum++}`;
+      while (existingIds.has(id)) {
+        id = `${prefix}-${Date.now().toString(36)}-${nextNum++}`;
+      }
+      existingIds.add(id);
+      return id;
+    };
+    const clone = (n: DocNode): DocNode => {
+      const newId = generateId(n.type);
+      return {
+        ...n,
+        id: newId,
+        children: n.children ? n.children.map(clone) : undefined,
+      };
+    };
+
+    for (const { node: parent } of walk(present.root)) {
+      if (!parent.children) continue;
+      const idx = parent.children.findIndex((c) => c.id === nodeId);
+      if (idx !== -1) {
+        const target = parent.children[idx];
+        if (!target) return;
+        const spec = specFor(target);
+        const cloned = clone(target);
+        try {
+          let updated = insertChild(present, parent.id, cloned, spec);
+          if (idx + 1 < parent.children.length) {
+            updated = moveNodeTo(updated, cloned.id, parent.id, idx + 1, spec);
+          }
+          commit(updated);
+          setSelectedId(cloned.id);
+        } catch (e) {
+          setStatus({ kind: "error", text: e instanceof ConstraintError ? STRUCTURE_ERROR : String(e) });
+        }
+        return;
+      }
+    }
+  };
+
+  const removeSelectedNode = (nodeId: string) => {
+    if (!present || nodeId === present.root.id) return;
+    commit(removeNode(present, nodeId));
+    setSelectedId(null);
   };
 
   const moveTo = (id: string, parentId: string, index?: number) => {
@@ -386,18 +446,18 @@ export function Editor({ project, page, onBack }: { project: Project; page: Page
   return (
     <div className={styles.editor} data-studio-only="page-builder">
       <header className={styles.toolbar}>
-        <button className={ui.button} onClick={onBack} title="بازگشت به صفحات">→ صفحات</button>
+        <button className={styles.backBtn} onClick={onBack} title="بازگشت به صفحات">← صفحات</button>
         <div className={styles.pageInfo}>
           <strong className={styles.pageTitle}>{localize(page.title, "fa")}</strong>
           <code className={styles.pagePath}>{page.path}</code>
         </div>
         <span className={styles.spacer} />
         <div className={styles.toolGroup} role="group" aria-label="ابزار ویرایش">
-          <button type="button" className={`${ui.button} ${tool === "select" ? ui.primary : ""}`}
+          <button type="button" className={`${tool === "select" ? styles.segmentedTabBtnActive : ""}`}
                   aria-pressed={tool === "select"} title="انتخاب المان‌ها" onClick={() => setToolMode("select")}>
             انتخاب
           </button>
-          <button type="button" className={`${ui.button} ${styles.iconTool} ${tool === "style" ? ui.primary : ""}`}
+          <button type="button" className={`${styles.iconTool} ${tool === "style" ? styles.segmentedTabBtnActive : ""}`}
                   aria-pressed={tool === "style"} aria-label="ویرایش استایل"
                   title="ویرایش استایل — روی هر ناحیه کلیک کنید"
                   onClick={() => setToolMode(tool === "style" ? "select" : "style")}>
@@ -407,7 +467,7 @@ export function Editor({ project, page, onBack }: { project: Project; page: Page
         <div className={styles.themeToggleGroup} role="group" aria-label="انتخاب تم">
           <button
             type="button"
-            className={`${ui.button} ${appearanceMode === "night" ? styles.themeActiveNight : ""}`}
+            className={`${appearanceMode === "night" ? styles.themeActiveNight : ""}`}
             onClick={() => onAppearanceModeChange("night")}
             title="مشاهده و ویرایش در حالت شب"
             aria-label="تم شب"
@@ -417,7 +477,7 @@ export function Editor({ project, page, onBack }: { project: Project; page: Page
           </button>
           <button
             type="button"
-            className={`${ui.button} ${appearanceMode === "day" ? styles.themeActiveDay : ""}`}
+            className={`${appearanceMode === "day" ? styles.themeActiveDay : ""}`}
             onClick={() => onAppearanceModeChange("day")}
             title="مشاهده و ویرایش در حالت روز"
             aria-label="تم روز"
@@ -427,28 +487,49 @@ export function Editor({ project, page, onBack }: { project: Project; page: Page
           </button>
         </div>
         <div className={styles.historyGroup}>
-          <button className={ui.button} disabled={!doc.past.length} onClick={() => setDoc(history.undo(doc))} title="واگرد" aria-label="واگرد">↶</button>
-          <button className={ui.button} disabled={!doc.future.length} onClick={() => setDoc(history.redo(doc))} title="ازنو" aria-label="ازنو">↷</button>
+          <button disabled={!doc.past.length} onClick={() => setDoc(history.undo(doc))} title="واگرد" aria-label="واگرد">↶</button>
+          <button disabled={!doc.future.length} onClick={() => setDoc(history.redo(doc))} title="ازنو" aria-label="ازنو">↷</button>
         </div>
-        <button className={`${ui.button} ${ui.primary}`} disabled={!dirty || status.kind === "busy"} onClick={save}>
-          {dirty && <span className={styles.dirtyBadge} />}
-          ذخیره
-        </button>
-        <button className={ui.button} disabled={dirty || status.kind === "busy"} onClick={publish}
-                title={dirty ? "اول ذخیره کنید" : "انتشار آخرین ویرایش ذخیره‌شده"}>انتشار</button>
-        <a className={ui.button} href={runtimeUrl} target="_blank" rel="noreferrer" onClick={handleOpenRuntime} title="نمایش زنده در ران‌تایم">نمایش ↗</a>
+        <div className={styles.savedPill} title={dirty ? "تغییرات ذخیره‌نشده دارید" : "تمامی تغییرات ذخیره شده‌اند"}>
+          <span className={`${styles.savedPillDot} ${dirty ? styles.savedPillDotDirty : ""}`} />
+          <span>{dirty ? "ذخیره نشده" : "Saved pages"}</span>
+        </div>
         <button
           type="button"
-          className={ui.button}
+          className={styles.resetBtn}
+          disabled={!dirty}
+          onClick={handleReset}
+          title={dirty ? "بازنشانی تغییرات به آخرین وضعیت ذخیره‌شده" : "هیچ تغییری برای بازنشانی وجود ندارد"}
+        >
+          <span>Reset</span>
+          <span style={{ fontSize: "0.7rem", opacity: 0.7 }}>⌄</span>
+        </button>
+        <button
+          type="button"
+          className={styles.saveBtn}
+          disabled={!dirty || status.kind === "busy"}
+          onClick={save}
+          aria-label="ذخیره"
+        >
+          {dirty && <span className={styles.dirtyBadge} aria-hidden="true" />}
+          <span aria-hidden="true" style={{ marginInlineEnd: 4 }}>💾</span>
+          ذخیره
+        </button>
+        <button className={styles.backBtn} disabled={dirty || status.kind === "busy"} onClick={publish}
+                title={dirty ? "اول ذخیره کنید" : "انتشار آخرین ویرایش ذخیره‌شده"}>انتشار</button>
+        <a className={styles.backBtn} href={runtimeUrl} target="_blank" rel="noreferrer" onClick={handleOpenRuntime} title="نمایش زنده در ران‌تایم">نمایش ↗</a>
+        <button
+          type="button"
+          className={styles.backBtn}
           style={{ borderColor: "rgba(56, 189, 248, 0.4)", color: "#38bdf8", gap: 6 }}
           onClick={() => setShowSiteLayout(true)}
           title="تنظیمات هدر، منو، لوگو، فوتر و تم پروژه"
         >
-          <span>🎨</span> قالب و تم سایت
+          <span>🎨</span> قالب سایت
         </button>
         <button
           type="button"
-          className={ui.button}
+          className={styles.backBtn}
           style={{
             background:
               currentDataMode === "test"
@@ -484,10 +565,10 @@ export function Editor({ project, page, onBack }: { project: Project; page: Page
         >
           <span>
             {currentDataMode === "test"
-              ? "🧪 داده‌های تستی"
+              ? "🧪 تستی"
               : currentDataMode === "live"
-              ? "🟢 داده‌های واقعی"
-              : "⚡ داده‌ها: خودکار"}
+              ? "🟢 واقعی"
+              : "⚡ خودکار"}
           </span>
         </button>
       </header>
@@ -590,12 +671,22 @@ export function Editor({ project, page, onBack }: { project: Project; page: Page
           )}
         </main>
         <aside className={styles.side}>
-          <Inspector node={selected} spec={specFor(selected)} projectId={project.id} catalog={catalog} values={values}
-                     errors={invalidErrors.filter((e) => selected && nodeIdForPointer(present, e.pointer) === selected.id)}
-                     onPatch={(patch) => selected && commit(updateNode(present, selected.id, patch))}
-                     onBindingCreated={reloadCatalog}
-                     appearanceMode={appearanceMode}
-                     onAppearanceModeChange={onAppearanceModeChange} />
+          <Inspector
+            node={selected}
+            spec={specFor(selected)}
+            projectId={project.id}
+            catalog={catalog}
+            values={values}
+            errors={invalidErrors.filter((e) => selected && nodeIdForPointer(present, e.pointer) === selected.id)}
+            onPatch={(patch) => selected && commit(updateNode(present, selected.id, patch))}
+            onBindingCreated={reloadCatalog}
+            appearanceMode={appearanceMode}
+            onAppearanceModeChange={onAppearanceModeChange}
+            totalNodes={totalNodes}
+            selectedIndex={selectedIndex}
+            onDuplicate={duplicateNode}
+            onRemove={removeSelectedNode}
+          />
           <VersionsPanel pageId={page.id} refreshKey={refreshKey} canRestore={!dirty} onRestore={restore} onActivate={activate} />
         </aside>
       </div>
